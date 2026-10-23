@@ -41,7 +41,7 @@ if ! security find-identity -p codesigning | grep -q "\"$SIGN_ID\""; then
     openssl req -x509 -newkey rsa:2048 -nodes -keyout "$T/key" -out "$T/crt" -days 3650 -config "$T/cnf" 2>/dev/null
     openssl pkcs12 -export -legacy -inkey "$T/key" -in "$T/crt" -out "$T/p12" -passout pass:orchard -name "$SIGN_ID" 2>/dev/null \
       || openssl pkcs12 -export -inkey "$T/key" -in "$T/crt" -out "$T/p12" -passout pass:orchard -name "$SIGN_ID"
-    security import "$T/p12" -k ~/Library/Keychains/login.keychain-db -P orchard -T /usr/bin/codesign >/dev/null
+    security import "$T/p12" -f pkcs12 -k ~/Library/Keychains/login.keychain-db -P orchard -T /usr/bin/codesign >/dev/null
     rm -rf "$T"
   else
     echo "Signing identity \"$SIGN_ID\" not found" >&2; exit 1
