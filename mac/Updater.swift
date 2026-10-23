@@ -207,6 +207,7 @@ final class Updater {
               rm -rf "$DEST"; mv "$DEST.old" "$DEST"
             fi
             xattr -dr com.apple.quarantine "$DEST" 2>/dev/null
+            touch "$DEST"
             /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" 2>/dev/null
             [ "$4" = 1 ] && open "$DEST"
             rm -rf "$(dirname "$NEW")"

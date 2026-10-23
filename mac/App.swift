@@ -47,6 +47,13 @@ struct SetupCommand: View {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ note: Notification) {
+        // Set the Dock / ⌘Tab icon explicitly. macOS caches app icons by bundle,
+        // so a copy first launched before it had an icon keeps showing the
+        // generic one there even though Finder shows the right icon.
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) {
+            NSApp.applicationIconImage = icon
+        }
         MainActor.assumeIsolated {
             RewriteController.shared.start()
             Services.shared.start()

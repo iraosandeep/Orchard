@@ -59,6 +59,7 @@ say "Installing to $APP"
 rm -rf "$APP"
 ditto "$TMP/Orchard.app" "$APP"
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+touch "$APP"  # refresh cached Dock/Finder icons
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" 2>/dev/null || true
 
 # Command-line tool: link into the first writable bin directory on PATH.

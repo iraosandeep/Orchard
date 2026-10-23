@@ -48,6 +48,7 @@ if ! security find-identity -p codesigning | grep -q "\"$SIGN_ID\""; then
   fi
 fi
 codesign --force --deep --sign "$SIGN_ID" "$APP"
+touch "$APP"  # refresh cached Dock/Finder icons
 # Register with LaunchServices so tccutil (Reset Permission) can find the app.
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$PWD/$APP"
 echo "Built $APP"
