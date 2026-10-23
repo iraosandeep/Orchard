@@ -130,5 +130,5 @@ Everything binds to loopback only.
 
 - **Chat says Apple Intelligence is off:** use Setup & Status › Open Settings, turn it on, and wait for the model download.
 - **Tasks show a red dot:** `fm serve` is down. Check that the `fm` license is agreed in Setup & Status, then look at `~/.orchard/fm.log`.
-- **⌃⌥R does nothing:** grant Accessibility in Setup & Status. The app is ad-hoc signed, so macOS may ask again after each rebuild.
+- **⌃⌥R keeps asking for Accessibility even though Orchard is switched on:** that toggle belongs to an older build. Click **Reset Permission** (in the prompt or in Setup & Status) and switch Orchard on again. `build.sh` signs with a stable local certificate ("Orchard Local Code Signing", created once in your login keychain), so the grant survives later rebuilds. Set `ORCHARD_SIGN_ID` to use your own Developer ID instead.
 - **"Safety filter declined this":** Apple's guardrails blocked the request. Try rephrasing.

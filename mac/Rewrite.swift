@@ -59,6 +59,15 @@ enum Keys {
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
     }
 
+    /// Clears this app's (possibly stale) Accessibility entry so macOS asks afresh.
+    static func resetTrust() {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        p.arguments = ["reset", "Accessibility", Bundle.main.bundleIdentifier ?? "local.orchard"]
+        try? p.run()
+        p.waitUntilExit()
+    }
+
     static func openAccessibilitySettings() {
         NSWorkspace.shared.open(
             URL(
@@ -178,12 +187,26 @@ final class RewriteController {
         guard Keys.requestTrust() else {
             let a = NSAlert()
             a.messageText = "Allow Orchard to rewrite text in other apps"
-            a.informativeText =
-                "Rewrite Selection copies your selection and pastes the result, which needs Accessibility access. Turn on Orchard in System Settings › Privacy & Security › Accessibility, then press \(rewriteShortcutLabel) again."
+            a.informativeText = """
+                Rewrite Selection copies your selection and pastes the result, which needs Accessibility access. \
+                Turn on Orchard in System Settings › Privacy & Security › Accessibility, then press \(rewriteShortcutLabel) again.
+
+                If Orchard already looks switched on, that entry belongs to an older build. \
+                Click Reset Permission, then switch Orchard on again.
+                """
             a.addButton(withTitle: "Open Settings")
+            a.addButton(withTitle: "Reset Permission")
             a.addButton(withTitle: "Cancel")
             NSApp.activate()
-            if a.runModal() == .alertFirstButtonReturn { Keys.openAccessibilitySettings() }
+            switch a.runModal() {
+            case .alertFirstButtonReturn:
+                Keys.openAccessibilitySettings()
+            case .alertSecondButtonReturn:
+                Keys.resetTrust()
+                _ = Keys.requestTrust()
+                Keys.openAccessibilitySettings()
+            default: break
+            }
             return
         }
         let front = NSWorkspace.shared.frontmostApplication

@@ -48,7 +48,11 @@ struct SetupView: View {
                 LabeledContent("Shortcut", value: rewriteShortcutLabel)
                 row("Accessibility", ok: s.accessibility,
                     detail: s.accessibility ? "Allowed" : "Needed to copy and replace text in other apps") {
-                    Button("Allow…") { _ = Keys.requestTrust(); Keys.openAccessibilitySettings() }
+                    HStack {
+                        Button("Reset") { Keys.resetTrust(); _ = Keys.requestTrust() }
+                            .help("Use this if Orchard already looks switched on in Settings")
+                        Button("Allow…") { _ = Keys.requestTrust(); Keys.openAccessibilitySettings() }
+                    }
                 }
             }
 
