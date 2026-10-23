@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Orchard</title>
+        <!--<link
+            rel="icon"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>"
+        />-->
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <header>
+            <strong class="brand">Orchard</strong>
+            <nav>
+                <button class="tab active" data-view="chat">Chat</button>
+                <button class="tab" data-view="tasks">Tasks</button>
+            </nav>
+            <span id="status" class="status" title="Checking fm serve…"
+                ><i></i><span>fm serve</span></span
+            >
+        </header>
+
+        <main id="chat" class="view">
+            <aside>
+                <button id="new-chat" class="primary">+ New chat</button>
+                <ul id="chat-list"></ul>
+            </aside>
+            <section class="chat-main">
+                <details id="sys">
+                    <summary>System prompt</summary>
+                    <textarea id="sys-prompt" rows="3"></textarea>
+                    <div class="row">
+                        <button id="sys-save">Save</button
+                        ><span id="sys-note" class="muted"></span>
+                    </div>
+                </details>
+                <div id="messages">
+                    <p class="empty">
+                        Ask anything. Replies are drafts from a small on-device
+                        model — check facts and code.
+                    </p>
+                </div>
+                <form id="composer">
+                    <textarea
+                        id="input"
+                        rows="3"
+                        placeholder="Message… (Enter to send, Shift+Enter for newline)"
+                    ></textarea>
+                    <div class="row">
+                        <span
+                            id="meter"
+                            class="meter"
+                            title="Estimated tokens in the next request (chars ÷ 4)"
+                            ><span class="bar"><b style="width: 0"></b></span
+                            ><span>0 / 3000</span></span
+                        >
+                        <span id="trim-note" class="muted"></span>
+                        <span class="spacer"></span>
+                        <button type="button" id="stop" hidden>Stop</button>
+                        <button type="submit" id="send" class="primary">
+                            Send
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </main>
+
+        <main id="tasks" class="view" hidden>
+            <aside>
+                <ul id="task-list"></ul>
+                <p class="muted small">
+                    Tasks live in <code>~/.orchard/tasks.yaml</code>.
+                </p>
+            </aside>
+            <section class="task-main">
+                <h2 id="task-title"></h2>
+                <label id="opt-wrap" hidden
+                    ><span id="opt-label"></span> <span id="opt-field"></span
+                ></label>
+                <textarea
+                    id="task-input"
+                    rows="10"
+                    placeholder="Paste text… (⌘+Enter to run)"
+                ></textarea>
+                <div class="row">
+                    <span id="task-count" class="muted"></span>
+                    <span class="spacer"></span>
+                    <button id="task-run" class="primary">Run</button>
+                </div>
+                <p id="task-warn" class="warn" hidden></p>
+                <div id="task-out-wrap" hidden>
+                    <div class="row">
+                        <span class="badge">draft</span
+                        ><span id="task-note" class="muted"></span
+                        ><span class="spacer"></span
+                        ><button id="task-copy">Copy</button>
+                    </div>
+                    <pre id="task-out"></pre>
+                </div>
+            </section>
+        </main>
+
+        <script src="app.js"></script>
+    </body>
+</html>

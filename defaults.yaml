@@ -1,0 +1,47 @@
+# Orchard task presets. Each task is a system prompt applied to the input text.
+#   name             used in the URL and CLI: `orchard run <name>`
+#   label            shown in the UI
+#   system           instructions; `{option}` is replaced with the option value
+#   option           optional extra input (label, default, choices)
+#   json             validate output as JSON; retry once, else show raw text
+#   max_input_chars  cap on input length (always also capped to the token budget)
+
+- name: summarize
+  label: Summarize
+  system: Summarize the text in 3-5 short bullets. Output only the bullets.
+
+- name: extract
+  label: Extract
+  system: >-
+    Extract these fields from the text: {option}.
+    Output only a single JSON object with exactly those keys. Use null for any field not found.
+    No explanation, no code fences.
+  option:
+    label: Fields
+    default: name, date, amount
+  json: true
+
+- name: rewrite
+  label: Rewrite
+  system: >-
+    Rewrite the text to be {option}. Keep the meaning. Output only the rewritten text.
+  option:
+    label: Tone
+    default: shorter
+    choices: [shorter, formal, friendly]
+
+- name: commit
+  label: Commit message
+  system: >-
+    Write one conventional commit line (type(scope): summary, under 72 characters) for this diff.
+    Output only the line.
+  max_input_chars: 6000
+
+- name: classify
+  label: Classify
+  system: >-
+    Classify the text into exactly one of these labels: {option}.
+    Output only the label, nothing else.
+  option:
+    label: Labels
+    default: bug, feature, question
