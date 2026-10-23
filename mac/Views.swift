@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(ChatModel.self) var model
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         @Bindable var model = model
@@ -18,11 +19,20 @@ struct ContentView: View {
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 220)
             .toolbar {
-                Button { model.newChat() } label: { Label("New Chat", systemImage: "square.and.pencil") }
-                    .help("New Chat (⌘N)")
+                Button {
+                    model.newChat()
+                } label: {
+                    Label("New Chat", systemImage: "square.and.pencil")
+                }
+                .help("New Chat (⌘N)")
             }
         } detail: {
             ChatDetail()
+        }
+        .task {
+            // On launch, open Setup if something needs the user's attention.
+            try? await Task.sleep(for: .seconds(2))
+            if Services.shared.needsSetup { openSettings() }
         }
     }
 }
@@ -35,6 +45,7 @@ struct ChatDetail: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            ModelBanner()
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 14) {
@@ -57,7 +68,9 @@ struct ChatDetail: View {
                     if model.messages.isEmpty && model.streaming == nil {
                         ContentUnavailableView(
                             "Orchard", systemImage: "leaf",
-                            description: Text("Chat with Apple's on-device model. Replies are drafts — check facts and code."))
+                            description: Text(
+                                "Chat with Apple's on-device model. Replies are drafts — check facts and code."
+                            ))
                     }
                 }
                 .onChange(of: model.streaming) { proxy.scrollTo("bottom", anchor: .bottom) }
@@ -68,13 +81,20 @@ struct ChatDetail: View {
         .navigationTitle(model.current?.title ?? "Orchard")
         .toolbar {
             ToolbarItem {
-                Button { showSystem.toggle() } label: { Label("System Prompt", systemImage: "text.badge.star") }
-                    .help("System prompt")
-                    .popover(isPresented: $showSystem) { SystemPromptEditor() }
+                Button {
+                    showSystem.toggle()
+                } label: {
+                    Label("System Prompt", systemImage: "text.badge.star")
+                }
+                .help("System prompt")
+                .popover(isPresented: $showSystem) { SystemPromptEditor() }
             }
         }
         .onAppear { focused = true }
-        .onChange(of: model.selection) { draft = ""; focused = true }
+        .onChange(of: model.selection) {
+            draft = ""
+            focused = true
+        }
     }
 
     var composer: some View {
@@ -100,17 +120,21 @@ struct ChatDetail: View {
                         Image(systemName: "arrow.up.circle.fill").font(.system(size: 26))
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? Color.secondary : Color.accentColor)
+                    .foregroundStyle(
+                        draft.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color.secondary : Color.accentColor
+                    )
                     .keyboardShortcut(.return, modifiers: .command)
                     .help("Send (Return)")
                 }
             }
             HStack(spacing: 8) {
                 let used = model.tokens + (draft.isEmpty ? 0 : Assistant.estimate(draft) + 4)
-                Gauge(value: Double(min(used, Assistant.budget)), in: 0...Double(Assistant.budget)) {}
-                    .gaugeStyle(.accessoryLinearCapacity)
-                    .tint(used > Assistant.budget ? .orange : .accentColor)
-                    .frame(width: 80)
+                Gauge(value: Double(min(used, Assistant.budget)), in: 0...Double(Assistant.budget))
+                {}
+                .gaugeStyle(.accessoryLinearCapacity)
+                .tint(used > Assistant.budget ? .orange : .accentColor)
+                .frame(width: 80)
                 Text("\(used) / \(Assistant.budget) tokens")
                     .monospacedDigit()
                 if used > Assistant.budget {
@@ -174,7 +198,8 @@ struct MessageRow: View {
     }
 
     func markdown(_ s: String) -> AttributedString {
-        (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+        (try? AttributedString(
+            markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
             ?? AttributedString(s)
     }
 }
@@ -198,7 +223,10 @@ struct SystemPromptEditor: View {
                 Button("Reset") { text = defaultSystemPrompt }
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Save") { model.setSystemPrompt(text); dismiss() }.keyboardShortcut(.defaultAction)
+                Button("Save") {
+                    model.setSystemPrompt(text)
+                    dismiss()
+                }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(14)

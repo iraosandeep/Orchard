@@ -20,14 +20,18 @@ final class HotKey {
 
     init(keyCode: Int, modifiers: Int, action: @escaping () -> Void) {
         self.action = action
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, ctx in
-            let me = Unmanaged<HotKey>.fromOpaque(ctx!).takeUnretainedValue()
-            DispatchQueue.main.async { me.action() }
-            return noErr
-        }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
-        let id = EventHotKeyID(signature: OSType(0x4F52_4348), id: 1) // 'ORCH'
-        RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), id, GetApplicationEventTarget(), 0, &ref)
+        var spec = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, _, ctx in
+                let me = Unmanaged<HotKey>.fromOpaque(ctx!).takeUnretainedValue()
+                DispatchQueue.main.async { me.action() }
+                return noErr
+            }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
+        let id = EventHotKeyID(signature: OSType(0x4F52_4348), id: 1)  // 'ORCH'
+        RegisterEventHotKey(
+            UInt32(keyCode), UInt32(modifiers), id, GetApplicationEventTarget(), 0, &ref)
     }
 
     deinit {
@@ -51,11 +55,16 @@ enum Keys {
     static var trusted: Bool { AXIsProcessTrusted() }
 
     static func requestTrust() -> Bool {
-        AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
+        AXIsProcessTrustedWithOptions(
+            [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
     }
 
     static func openAccessibilitySettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        NSWorkspace.shared.open(
+            URL(
+                string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+        )
     }
 }
 
@@ -79,7 +88,10 @@ extension NSPasteboard {
 @MainActor @Observable
 final class RewriteState {
     static let presets: [(name: String, instruction: String)] = [
-        ("Fix Grammar", "Fix spelling, grammar and punctuation. Keep the wording and meaning otherwise unchanged."),
+        (
+            "Fix Grammar",
+            "Fix spelling, grammar and punctuation. Keep the wording and meaning otherwise unchanged."
+        ),
         ("Shorter", "Make it shorter and more concise. Keep the meaning."),
         ("Formal", "Make it more formal and professional."),
         ("Friendly", "Make it warmer and more friendly."),
@@ -106,9 +118,13 @@ final class RewriteState {
     func run(_ instruction: String) {
         let instruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !instruction.isEmpty, !original.isEmpty else { return }
-        if let reason = Assistant.unavailableReason { error = reason; return }
+        if let reason = Assistant.unavailableReason {
+            error = reason
+            return
+        }
         if original.count > rewriteMaxChars {
-            error = "Selection is too long (\(original.count) characters). Rewrite handles up to \(rewriteMaxChars) so nothing gets cut off."
+            error =
+                "Selection is too long (\(original.count) characters). Rewrite handles up to \(rewriteMaxChars) so nothing gets cut off."
             return
         }
         task?.cancel()
@@ -162,7 +178,8 @@ final class RewriteController {
         guard Keys.requestTrust() else {
             let a = NSAlert()
             a.messageText = "Allow Orchard to rewrite text in other apps"
-            a.informativeText = "Rewrite Selection copies your selection and pastes the result, which needs Accessibility access. Turn on Orchard in System Settings › Privacy & Security › Accessibility, then press \(rewriteShortcutLabel) again."
+            a.informativeText =
+                "Rewrite Selection copies your selection and pastes the result, which needs Accessibility access. Turn on Orchard in System Settings › Privacy & Security › Accessibility, then press \(rewriteShortcutLabel) again."
             a.addButton(withTitle: "Open Settings")
             a.addButton(withTitle: "Cancel")
             NSApp.activate()
@@ -179,7 +196,10 @@ final class RewriteController {
 
         let selection = await copySelection()
         if selection.isEmpty {
-            state.reset(original: "", error: "No text selected. Select text in any app, then press \(rewriteShortcutLabel).")
+            state.reset(
+                original: "",
+                error:
+                    "No text selected. Select text in any app, then press \(rewriteShortcutLabel).")
         } else {
             state.reset(original: selection)
         }
@@ -280,7 +300,9 @@ struct RewriteView: View {
                 HStack {
                     ForEach(Array(RewriteState.presets.enumerated()), id: \.offset) { i, p in
                         Button(p.name) { state.run(p.instruction) }
-                            .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+                            .keyboardShortcut(
+                                KeyEquivalent(Character("\(i + 1)")), modifiers: .command
+                            )
                             .help("⌘\(i + 1)")
                     }
                 }

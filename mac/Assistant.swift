@@ -101,7 +101,9 @@ enum Assistant {
     }
 
     static func stream(instructions: String, input: String) -> AsyncThrowingStream<String, Error> {
-        stream(session: LanguageModelSession(model: rewriteModel, instructions: instructions), prompt: input)
+        stream(
+            session: LanguageModelSession(model: rewriteModel, instructions: instructions),
+            prompt: input)
     }
 
     /// A short, human message for model errors.

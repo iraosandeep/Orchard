@@ -1,6 +1,6 @@
-// Orchard for Mac: a native chat window for Apple's on-device model, plus
-// Rewrite Selection (⌃⌥R) in any app.
-import Combine
+// Orchard for Mac: one app for everything. A native chat window, Rewrite
+// Selection (⌃⌥R) in any app, and a menu-bar item. On launch it starts the
+// bundled Orchard server (web Tasks UI + API), which keeps `fm serve` running.
 import SwiftUI
 
 @main
@@ -24,49 +24,38 @@ struct OrchardApp: App {
                     Task { await RewriteController.shared.trigger() }
                 }
             }
+            CommandGroup(replacing: .appSettings) {
+                SetupCommand()
+            }
         }
-        Settings { SettingsView() }
+
+        Settings { SetupView() }
+
+        MenuBarExtra("Orchard", systemImage: "leaf") { MenuBarContent() }
+    }
+}
+
+struct SetupCommand: View {
+    @Environment(\.openSettings) private var openSettings
+    var body: some View {
+        Button("Setup & Status…") { openSettings() }.keyboardShortcut(",")
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ note: Notification) {
-        MainActor.assumeIsolated { RewriteController.shared.start() }
+        MainActor.assumeIsolated {
+            RewriteController.shared.start()
+            Services.shared.start()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool {
-        false // keep running so the rewrite shortcut works
+        false // keep running for the menu bar, the server and the rewrite shortcut
     }
-}
 
-struct SettingsView: View {
-    @ViewState private var trusted = Keys.trusted
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    var body: some View {
-        Form {
-            Section("Rewrite Selection") {
-                LabeledContent("Shortcut", value: rewriteShortcutLabel)
-                LabeledContent("Accessibility") {
-                    if trusted {
-                        Label("Allowed", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    } else {
-                        Button("Allow…") { _ = Keys.requestTrust(); Keys.openAccessibilitySettings() }
-                    }
-                }
-                Text("Select text in any app and press \(rewriteShortcutLabel). Pick an instruction and Orchard replaces the selection. Your clipboard is restored afterwards.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Section("Model") {
-                LabeledContent("Status", value: Assistant.unavailableReason ?? "Ready (on-device)")
-                LabeledContent("Context", value: "\(Assistant.contextSize) tokens")
-                LabeledContent("History", value: "~/.orchard/orchard.db (shared with the web UI)")
-            }
-        }
-        .formStyle(.grouped)
-        .frame(width: 440)
-        .onReceive(timer) { _ in trusted = Keys.trusted }
+    func applicationWillTerminate(_ note: Notification) {
+        MainActor.assumeIsolated { Services.shared.stopServer() }
     }
 }
 
