@@ -2,7 +2,17 @@
 
 A local, private front end for Apple's on-device Foundation Model. **Orchard.app** has a native chat window, rewrites selected text in any app, runs one-click text tasks in the browser, and includes a CLI for scripts and git hooks. Nothing leaves your Mac.
 
-## Quick start
+## Install
+
+```sh
+curl -fsSL https://github.com/iraosandeep/Orchard/releases/latest/download/install.sh | sh
+```
+
+This downloads the latest release, installs `Orchard.app` into `/Applications` (or `~/Applications`), links the `orchard` command, and opens the app. You need an Apple Silicon Mac on macOS 26.4 or later with Apple Intelligence. Run the same command again to update.
+
+Orchard isn't notarized by Apple. Downloading `Orchard.zip` in a browser works too, but the first launch needs System Settings › Privacy & Security › **Open Anyway**. The command above avoids that.
+
+## Build from source
 
 ```sh
 ./build.sh          # builds Orchard.app (needs Go + Xcode Command Line Tools; full Xcode not required)
@@ -115,6 +125,15 @@ The Go **guard** (`guard.go`) makes every `fm serve` request safe: plain string 
 | `web/` | Embedded web UI (plain HTML/CSS/JS, no build step) |
 | `mac/` | SwiftUI app: chat, rewrite, menu bar, setup, services |
 | `build.sh` | Builds `Orchard.app` with the Go binary bundled inside |
+
+## Releasing
+
+```sh
+./release.sh v0.3.0 --dry-run   # build + zip into dist/
+./release.sh v0.3.0             # also tag and publish a GitHub release (Orchard.zip, install.sh, SHA256SUMS)
+```
+
+Always release from a Mac that has the "Orchard Local Code Signing" identity, or set `ORCHARD_SIGN_ID`, so users keep their Accessibility grant across updates. Back up that certificate (Keychain Access › export .p12).
 
 ## Configuration
 

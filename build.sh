@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 APP=Orchard.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-go build -o "$APP/Contents/Resources/orchard" .
+go build -trimpath -ldflags "-s -w" -o "$APP/Contents/Resources/orchard" .
 swiftc -parse-as-library -swift-version 5 -O -target arm64-apple-macos26.4 \
   -o "$APP/Contents/MacOS/Orchard" mac/*.swift
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -19,7 +19,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>local.orchard</string>
   <key>CFBundleExecutable</key><string>Orchard</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2</string>
+  <key>CFBundleShortVersionString</key><string>${ORCHARD_VERSION:-0.0.0-dev}</string>
+  <key>CFBundleVersion</key><string>${ORCHARD_VERSION:-0.0.0-dev}</string>
   <key>LSMinimumSystemVersion</key><string>26.4</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
