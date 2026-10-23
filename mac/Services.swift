@@ -157,7 +157,11 @@ final class Services {
             echo
             sudo \(Self.fmPath) license
             echo
-            echo "Done. You can close this window and return to Orchard."
+            if \(Self.fmPath) license --status 2>/dev/null | grep -q "^Agreed to"; then
+              echo "Done. You can close this window and return to Orchard."
+            else
+              echo "Not agreed yet. Use Review & Agree… in Orchard's Setup to try again."
+            fi
             """
         try? body.write(to: script, atomically: true, encoding: .utf8)
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
