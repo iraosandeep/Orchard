@@ -56,6 +56,8 @@ struct SetupView: View {
                 }
             }
 
+            UpdatesSection()
+
             Section("Command Line") {
                 row("orchard", ok: s.cliPath != nil,
                     detail: s.cliMessage ?? s.cliPath ?? "Not installed. Lets you run tasks like 'orchard run commit' from scripts and git hooks.") {
@@ -116,6 +118,10 @@ struct MenuBarContent: View {
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
+        if let r = Updater.shared.available {
+            Button("Update to Orchard \(r.version)…") { Updater.shared.prompt(r) }
+            Divider()
+        }
         Text(s.modelReason == nil ? "Model ready" : "Model unavailable")
         Text("Server: \(s.serverSummary)")
         Divider()
@@ -135,7 +141,45 @@ struct MenuBarContent: View {
             NSApp.activate()
         }
         .keyboardShortcut(",")
+        Button("Check for Updates…") { Task { await Updater.shared.check(userInitiated: true) } }
         Button("Quit Orchard") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
+    }
+}
+
+struct UpdatesSection: View {
+    let u = Updater.shared
+
+    var body: some View {
+        Section("Updates") {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Orchard \(u.current)")
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                switch u.state {
+                case .available(let r):
+                    Button("Install \(r.version)") { Task { await u.install(r) } }
+                        .buttonStyle(.borderedProminent)
+                case .checking, .installing:
+                    ProgressView().controlSize(.small)
+                default:
+                    Button("Check Now") { Task { await u.check(userInitiated: true) } }
+                }
+            }
+            Toggle("Check for updates automatically", isOn: Binding(get: { u.autoCheck }, set: { u.autoCheck = $0 }))
+        }
+    }
+
+    var status: String {
+        switch u.state {
+        case .idle: u.isDevBuild ? "Development build" : "Not checked yet"
+        case .checking: "Checking…"
+        case .upToDate: "Up to date"
+        case .available(let r): "Version \(r.version) is available"
+        case .installing(let step): step
+        case .failed(let m): m
+        }
     }
 }

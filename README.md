@@ -8,7 +8,9 @@ A local, private front end for Apple's on-device Foundation Model. **Orchard.app
 curl -fsSL https://github.com/iraosandeep/Orchard/releases/latest/download/install.sh | sh
 ```
 
-This downloads the latest release, installs `Orchard.app` into `/Applications` (or `~/Applications`), links the `orchard` command, and opens the app. You need an Apple Silicon Mac on macOS 26.4 or later with Apple Intelligence. Run the same command again to update.
+This downloads the latest release, installs `Orchard.app` into `/Applications` (or `~/Applications`), links the `orchard` command, and opens the app. You need an Apple Silicon Mac on macOS 26.4 or later with Apple Intelligence.
+
+**Updates:** Orchard checks GitHub for a new release on launch and once a day. Turn this off in Setup & Status. When there's an update it asks once, then keeps an **Update to …** item in the menu bar. Install it from there, from Setup & Status, or with **Orchard › Check for Updates…**. The update is downloaded, checked to be signed by the same certificate as your installed copy, swapped in, and relaunched. Running the install command again also updates.
 
 Orchard isn't notarized by Apple. Downloading `Orchard.zip` in a browser works too, but the first launch needs System Settings › Privacy & Security › **Open Anyway**. The command above avoids that.
 

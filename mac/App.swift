@@ -24,6 +24,9 @@ struct OrchardApp: App {
                     Task { await RewriteController.shared.trigger() }
                 }
             }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Task { await Updater.shared.check(userInitiated: true) } }
+            }
             CommandGroup(replacing: .appSettings) {
                 SetupCommand()
             }
@@ -47,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainActor.assumeIsolated {
             RewriteController.shared.start()
             Services.shared.start()
+            Updater.shared.start()
         }
     }
 
