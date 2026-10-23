@@ -2,7 +2,12 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#1e1e1e" media="(prefers-color-scheme: dark)" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Orchard" />
+        <link rel="apple-touch-icon" href="icon.png" />
         <meta name="color-scheme" content="light dark" />
         <title>Orchard</title>
         <link rel="icon" href="icon.png" />
@@ -27,6 +32,7 @@
                     <span id="status" class="status" title="Checking fm serve…"><i></i><span>fm serve</span></span>
                 </div>
             </aside>
+            <div class="scrim" id="scrim"></div>
 
             <main class="content">
                 <header class="toolbar">

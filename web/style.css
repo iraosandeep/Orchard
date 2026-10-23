@@ -101,6 +101,7 @@ svg.icon {
 .window {
     display: flex;
     height: 100%;
+    height: 100dvh;
 }
 .window.collapsed .sidebar {
     display: none;
@@ -303,7 +304,7 @@ select:focus {
     right: 0;
     top: 38px;
     z-index: 10;
-    width: 360px;
+    width: min(360px, calc(100vw - 24px));
     padding: 14px;
     border-radius: 12px;
     background: var(--control);
@@ -604,4 +605,124 @@ select:focus {
     font-family: var(--font);
     font-size: 13px;
     line-height: 1.5;
+}
+
+/* ---------- touch + small screens ---------- */
+
+.scrim {
+    display: none;
+}
+
+/* Touch devices: no hover, so keep hover-only controls visible. */
+@media (hover: none) {
+    .source-list li .del,
+    .msg .copy {
+        visibility: visible;
+        opacity: 0.6;
+    }
+}
+
+/* Phones/tablets: iOS zooms into any focused field under 16px, so use 16px. */
+@media (pointer: coarse) {
+    textarea,
+    input,
+    select {
+        font-size: 16px;
+    }
+    .source-list li {
+        height: 40px;
+    }
+    .tool {
+        width: 36px;
+        height: 36px;
+    }
+    .round {
+        width: 34px;
+        height: 34px;
+        margin-bottom: 3px;
+    }
+    .btn {
+        min-height: 34px;
+        padding: 6px 16px;
+    }
+}
+
+@media (max-width: 720px) {
+    body {
+        font-size: 15px;
+    }
+    /* Sidebar becomes a slide-in drawer over the content. */
+    .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 30;
+        width: min(300px, 85vw);
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+        padding-left: env(safe-area-inset-left);
+        box-shadow: none;
+    }
+    .window.drawer-open .sidebar {
+        transform: none;
+        box-shadow: var(--pop-shadow);
+    }
+    .window.drawer-open .scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        background: rgba(0, 0, 0, 0.3);
+    }
+    .sidebar-toolbar,
+    .toolbar {
+        height: calc(52px + env(safe-area-inset-top));
+        padding-top: env(safe-area-inset-top);
+    }
+    /* The drawer is closed by tapping outside it, not by this button. */
+    #toggle-sidebar {
+        display: none;
+    }
+    .sidebar-footer {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+    .toolbar {
+        padding-left: calc(12px + env(safe-area-inset-left));
+        padding-right: calc(12px + env(safe-area-inset-right));
+    }
+    .toolbar h1 {
+        font-size: 17px;
+    }
+    .banner {
+        padding: 8px 14px;
+    }
+    #messages {
+        padding: 10px calc(12px + env(safe-area-inset-right)) 16px calc(12px + env(safe-area-inset-left));
+    }
+    .msg {
+        max-width: 90%;
+    }
+    .msg.user {
+        max-width: 85%;
+    }
+    #composer {
+        padding: 8px calc(10px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+    }
+    #input {
+        max-height: 140px;
+    }
+    .msg .text pre {
+        font-size: 12px;
+    }
+    .task-body {
+        padding: 4px calc(14px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+    }
+    .group-row {
+        flex-wrap: wrap;
+    }
+    #task-input {
+        min-height: 140px;
+    }
+    #task-out {
+        font-size: 15px;
+    }
 }

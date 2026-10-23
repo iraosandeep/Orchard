@@ -145,13 +145,17 @@ final class Services {
         for u in urls where NSWorkspace.shared.open(URL(string: u)!) { return }
     }
 
-    /// Opens `fm license` in Terminal so the user reads and agrees to the
-    /// terms themselves.
+    /// Opens `sudo fm license` in Terminal so the user reads and agrees to the
+    /// terms themselves. fm requires root (the agreement is machine-wide) and
+    /// a real TTY, so this can't be answered from inside the app.
     func openLicenseInTerminal() {
         let script = FileManager.default.temporaryDirectory.appendingPathComponent("orchard-fm-license.command")
         let body = """
             #!/bin/sh
-            \(Self.fmPath) license
+            echo "Orchard needs you to agree to Apple's Foundation Models terms."
+            echo "Enter your Mac password, read the terms, then type yes."
+            echo
+            sudo \(Self.fmPath) license
             echo
             echo "Done. You can close this window and return to Orchard."
             """

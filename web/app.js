@@ -5,6 +5,10 @@ const BUDGET = 3000;
 const DEFAULT_SYSTEM = "You are a helpful assistant. Be concise.";
 const est = (s) => Math.ceil([...s].length / 4); // same chars ÷ 4 rule as the server
 const fmt = (n) => n.toLocaleString();
+const narrow = matchMedia("(max-width: 720px)"); // sidebar becomes a drawer
+const touch = matchMedia("(pointer: coarse)").matches; // on-screen keyboard
+// Focusing a field on a phone pops the keyboard; only do it on desktop.
+const focus = (el) => touch || el.focus();
 
 // ---------- icons (Lucide, MIT licensed: https://lucide.dev) ----------
 
@@ -171,6 +175,7 @@ function setMode(mode, title) {
     const hash = mode === "chat" ? `#chat=${chat.id}` : `#task=${tasks.current?.name}`;
     if (location.hash !== hash) history.replaceState(null, "", hash);
     markActive();
+    if (narrow.matches) setSidebar(false);
 }
 
 function markActive() {
@@ -178,12 +183,25 @@ function markActive() {
     document.querySelectorAll("#task-list li").forEach((li) => li.classList.toggle("active", ui.mode === "task" && li.dataset.name === tasks.current?.name));
 }
 
+// Desktop: the sidebar collapses. Narrow screens: it's a drawer over the
+// content, closed by default, with the show button always in the toolbar.
 function setSidebar(open) {
-    $("#window").classList.toggle("collapsed", !open);
-    $("#show-sidebar").hidden = open;
+    const w = $("#window");
+    if (narrow.matches) {
+        w.classList.remove("collapsed");
+        w.classList.toggle("drawer-open", open);
+        $("#show-sidebar").hidden = false;
+    } else {
+        w.classList.remove("drawer-open");
+        w.classList.toggle("collapsed", !open);
+        $("#show-sidebar").hidden = open;
+    }
 }
 $("#toggle-sidebar").onclick = () => setSidebar(false);
 $("#show-sidebar").onclick = () => setSidebar(true);
+$("#scrim").onclick = () => setSidebar(false);
+narrow.addEventListener("change", () => setSidebar(!narrow.matches));
+setSidebar(!narrow.matches);
 
 async function checkHealth() {
     const el = $("#status");
@@ -288,12 +306,12 @@ async function openChat(id) {
     $("#trim-note").textContent = "";
     setMode("chat", c.title || "New chat");
     updateMeter();
-    $("#input").focus();
+    focus($("#input"));
 }
 
 async function newChat() {
     // Reuse an empty chat instead of piling them up.
-    if (chat.id && ui.mode === "chat" && !$("#messages .msg") && chat.title === "New chat") return $("#input").focus();
+    if (chat.id && ui.mode === "chat" && !$("#messages .msg") && chat.title === "New chat") return narrow.matches ? setSidebar(false) : focus($("#input"));
     const c = await api("POST", "/api/chats", {});
     await loadChats();
     await openChat(c.id);
@@ -314,7 +332,7 @@ $("#sys-btn").onclick = (e) => {
     pop.hidden = !pop.hidden;
     if (!pop.hidden) {
         $("#sys-prompt").value = chat.system;
-        $("#sys-prompt").focus();
+        focus($("#sys-prompt"));
     }
 };
 $("#sys-pop").onclick = (e) => e.stopPropagation();
@@ -335,7 +353,8 @@ $("#input").addEventListener("input", () => {
     updateMeter();
 });
 $("#input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    // On touch keyboards Return adds a line; the send button sends.
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !touch) {
         e.preventDefault();
         $("#composer").requestSubmit();
     }
@@ -395,7 +414,7 @@ $("#composer").addEventListener("submit", async (e) => {
         const { tokens } = await api("GET", `/api/chats/${chat.id}`);
         chat.baseTokens = tokens;
         updateMeter();
-        $("#input").focus();
+        focus($("#input"));
     }
 });
 
@@ -439,7 +458,7 @@ function selectTask(t) {
         wrap.hidden = true;
     }
     updateTaskCount();
-    $("#task-input").focus();
+    focus($("#task-input"));
 }
 
 function updateTaskCount() {
