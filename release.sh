@@ -5,7 +5,9 @@
 #   ./release.sh v0.2.0 --dry-run   # build and zip into dist/ only
 #
 # Releases must be signed with the same identity every time so users keep their
-# Accessibility grant across updates (see build.sh / ORCHARD_SIGN_ID).
+# Accessibility grant and the in-app updater accepts the update (see build.sh /
+# ORCHARD_SIGN_ID). The build is refused unless it's signed by RELEASE_CERT.
+RELEASE_CERT=fa647bcca20380f71f82b87e670e5a31ea1bc447 # SHA-1 of the signing certificate
 set -eu
 cd "$(dirname "$0")"
 
@@ -24,6 +26,11 @@ if [ "$DRY" != "--dry-run" ]; then
 fi
 
 ORCHARD_VERSION=${VERSION#v} ./build.sh
+codesign -d -r- Orchard.app 2>&1 | grep -q "certificate leaf = H\"$RELEASE_CERT\"" || {
+  echo "Orchard.app isn't signed by the release certificate ($RELEASE_CERT)." >&2
+  echo "Existing users couldn't update to it. Import the release identity and rebuild." >&2
+  exit 1
+}
 
 rm -rf dist && mkdir dist
 ditto -c -k --keepParent Orchard.app dist/Orchard.zip
