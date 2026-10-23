@@ -364,3 +364,13 @@ aside li:hover .del {
 [hidden] {
   display: none !important;
 }
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.logo {
+    width: 22px;
+    height: 22px;
+}

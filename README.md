@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" width="128" alt="Orchard logo"></p>
+
 # Orchard
 
 A local, private front end for Apple's on-device Foundation Model. **Orchard.app** has a native chat window, rewrites selected text in any app, runs one-click text tasks in the browser, and includes a CLI for scripts and git hooks. Nothing leaves your Mac.
@@ -49,12 +51,12 @@ Quitting Orchard (⌘Q or from the menu bar) stops the server and any `fm serve`
 - History is trimmed from the oldest turn using exact token counts. The native API gives an **8,192-token** context, versus 4,096 through `fm serve`. A meter shows usage.
 - Chats are stored in `~/.orchard/orchard.db`, shared with the web UI.
 
-### Rewrite Selection (⌃⌥R, any app)
+### Rewrite Selection (⌃⌥R by default, any app)
 1. Select text anywhere and press ⌃⌥R.
 2. Pick **Fix Grammar / Shorter / Formal / Friendly** (⌘1–4) or type your own instruction.
 3. Press ⌘Return to replace the selection. Your clipboard is restored afterwards.
 
-Selections over 6,000 characters are refused rather than cut off. Rewrite uses Apple's permissive guardrails for transforming text you supply, so ordinary text is rarely blocked.
+To change the shortcut, open Setup & Status › Rewrite Selection, click it and press a new combination; it needs at least two modifier keys, or use a function key. **Reset** restores ⌃⌥R. Selections over 6,000 characters are refused rather than cut off. Rewrite uses Apple's permissive guardrails for transforming text you supply, so ordinary text is rarely blocked.
 
 ### Tasks (browser)
 Open **Tasks in Browser** from the menu bar, or go to `http://127.0.0.1:1977`. Paste text and pick a task:
@@ -127,6 +129,7 @@ The Go **guard** (`guard.go`) makes every `fm serve` request safe: plain string 
 | `web/` | Embedded web UI (plain HTML/CSS/JS, no build step) |
 | `mac/` | SwiftUI app: chat, rewrite, menu bar, setup, services |
 | `build.sh` | Builds `Orchard.app` with the Go binary bundled inside |
+| `mac/icon/make-icon.swift` | Draws the app icon (`AppIcon.icns`, `docs/logo.png`, `web/icon.png`); run `swift mac/icon/make-icon.swift` after editing |
 
 ## Releasing
 

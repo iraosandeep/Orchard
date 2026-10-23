@@ -45,7 +45,11 @@ struct SetupView: View {
             }
 
             Section("Rewrite Selection") {
-                LabeledContent("Shortcut", value: rewriteShortcutLabel)
+                LabeledContent("Shortcut") { ShortcutRecorder() }
+                Text(ShortcutStore.shared.message
+                     ?? "Click the shortcut to change it. If nothing happens when you press it, another app may be using the same keys. Pick a different one.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 row("Accessibility", ok: s.accessibility,
                     detail: s.accessibility ? "Allowed" : "Needed to copy and replace text in other apps") {
                     HStack {

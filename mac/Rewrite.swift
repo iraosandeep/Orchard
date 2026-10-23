@@ -1,4 +1,4 @@
-// Rewrite selection in any app: press ⌃⌥R, pick an instruction, and the
+// Rewrite selection in any app: press the shortcut (⌃⌥R by default), pick an instruction, and the
 // rewritten text replaces the selection. Uses copy/paste key events, so it
 // works in almost any text field. Needs Accessibility permission.
 import AppKit
@@ -7,7 +7,6 @@ import Carbon.HIToolbox
 import Observation
 import SwiftUI
 
-let rewriteShortcutLabel = "⌃⌥R"
 /// Keep rewrites well inside the context window so the output is never cut short.
 let rewriteMaxChars = 6000
 
@@ -18,7 +17,8 @@ final class HotKey {
     private var handler: EventHandlerRef?
     private let action: () -> Void
 
-    init(keyCode: Int, modifiers: Int, action: @escaping () -> Void) {
+    /// Fails if the combination can't be registered (e.g. another app owns it).
+    init?(keyCode: Int, modifiers: Int, action: @escaping () -> Void) {
         self.action = action
         var spec = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -30,8 +30,12 @@ final class HotKey {
                 return noErr
             }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
         let id = EventHotKeyID(signature: OSType(0x4F52_4348), id: 1)  // 'ORCH'
-        RegisterEventHotKey(
+        let status = RegisterEventHotKey(
             UInt32(keyCode), UInt32(modifiers), id, GetApplicationEventTarget(), 0, &ref)
+        guard status == noErr else {
+            if let handler { RemoveEventHandler(handler) }
+            return nil
+        }
     }
 
     deinit {
@@ -178,10 +182,22 @@ final class RewriteController {
     private var sourceApp: NSRunningApplication?
 
     func start() {
-        hotKey = HotKey(keyCode: kVK_ANSI_R, modifiers: controlKey | optionKey) { [weak self] in
-            Task { @MainActor in await self?.trigger() }
+        if !register(ShortcutStore.shared.current) {
+            ShortcutStore.shared.message = "\(rewriteShortcutLabel) is used by another app. Pick a different shortcut."
         }
     }
+
+    /// Replaces the global hotkey; returns false if it couldn't be registered.
+    @discardableResult
+    func register(_ s: Shortcut) -> Bool {
+        hotKey = nil // unregister the old one first
+        hotKey = HotKey(keyCode: s.keyCode, modifiers: s.modifiers) { [weak self] in
+            Task { @MainActor in await self?.trigger() }
+        }
+        return hotKey != nil
+    }
+
+    func unregister() { hotKey = nil }
 
     func trigger() async {
         guard Keys.requestTrust() else {

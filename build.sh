@@ -8,6 +8,7 @@ APP=Orchard.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 go build -trimpath -ldflags "-s -w" -o "$APP/Contents/Resources/orchard" .
+cp mac/icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 swiftc -parse-as-library -swift-version 5 -O -target arm64-apple-macos26.4 \
   -o "$APP/Contents/MacOS/Orchard" mac/*.swift
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -18,6 +19,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Orchard</string>
   <key>CFBundleIdentifier</key><string>local.orchard</string>
   <key>CFBundleExecutable</key><string>Orchard</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${ORCHARD_VERSION:-0.0.0-dev}</string>
   <key>CFBundleVersion</key><string>${ORCHARD_VERSION:-0.0.0-dev}</string>
