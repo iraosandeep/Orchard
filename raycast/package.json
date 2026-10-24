@@ -1,0 +1,88 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "orchard",
+  "title": "Orchard",
+  "description": "Rewrite selected text with Apple's on-device model, through the Orchard app. Nothing leaves your Mac.",
+  "icon": "icon.png",
+  "author": "iraosandeep",
+  "categories": [
+    "Productivity",
+    "Developer Tools"
+  ],
+  "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
+  "commands": [
+    {
+      "name": "rewrite-selection",
+      "title": "Rewrite Selection",
+      "subtitle": "Orchard",
+      "description": "Rewrite the selected text (or the clipboard) with a preset or your own instruction.",
+      "mode": "view"
+    },
+    {
+      "name": "fix-grammar",
+      "title": "Fix Grammar",
+      "subtitle": "Orchard",
+      "description": "Fix spelling, grammar and punctuation in the selected text and paste the result over it.",
+      "mode": "no-view"
+    },
+    {
+      "name": "make-shorter",
+      "title": "Make Shorter",
+      "subtitle": "Orchard",
+      "description": "Make the selected text shorter and paste the result over it.",
+      "mode": "no-view"
+    },
+    {
+      "name": "make-formal",
+      "title": "Make Formal",
+      "subtitle": "Orchard",
+      "description": "Make the selected text more formal and paste the result over it.",
+      "mode": "no-view"
+    },
+    {
+      "name": "make-friendly",
+      "title": "Make Friendly",
+      "subtitle": "Orchard",
+      "description": "Make the selected text warmer and paste the result over it.",
+      "mode": "no-view"
+    },
+    {
+      "name": "install-orchard",
+      "title": "Install Orchard",
+      "subtitle": "Orchard",
+      "description": "Install or update the Orchard app from GitHub.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "serverURL",
+      "title": "Orchard URL",
+      "description": "Where the Orchard app's server listens.",
+      "type": "textfield",
+      "required": false,
+      "default": "http://127.0.0.1:1977"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^2.9.0",
+    "@raycast/utils": "^2.3.3"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix"
+  }
+}
