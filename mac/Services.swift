@@ -21,7 +21,7 @@ final class Services {
     var server: Server = .stopped
     var modelReason: String? = Assistant.unavailableReason
     var fmInstalled = FileManager.default.isExecutableFile(atPath: fmPath)
-    var fmLicense: Bool? // nil until checked
+    var fmLicense: Bool?  // nil until checked
     var accessibility = Keys.trusted
     var cliPath: String?
     var cliMessage: String?
@@ -46,6 +46,13 @@ final class Services {
     func start() {
         Task {
             await refresh()
+            // A server from another Orchard version (e.g. orphaned when an
+            // older app was killed) would serve stale code; replace it.
+            if case .running = server, process == nil,
+                await Self.serverVersion(webURL) != Self.appVersion
+            {
+                await stopStaleServer()
+            }
             if server == .stopped { startServer() }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
@@ -63,8 +70,12 @@ final class Services {
         case 200?: server = .running(fmUp: true)
         case _?: server = .running(fmUp: false)
         case nil:
-            if process?.isRunning == true { server = .starting }
-            else if case .failed = server {} else { server = .stopped }
+            if process?.isRunning == true {
+                server = .starting
+            } else if case .failed = server {
+            } else {
+                server = .stopped
+            }
         }
     }
 
@@ -77,7 +88,8 @@ final class Services {
     func startServer() {
         guard process?.isRunning != true else { return }
         guard let bin = bundledBinary else {
-            server = .failed("Orchard server binary missing from the app bundle; rebuild with ./build.sh")
+            server = .failed(
+                "Orchard server binary missing from the app bundle; rebuild with ./build.sh")
             return
         }
         let p = Process()
@@ -102,7 +114,8 @@ final class Services {
             Task { @MainActor in
                 let s = Services.shared
                 if !s.stopping && code != 0 {
-                    s.server = .failed("Orchard server exited (code \(code)). See ~/.orchard/orchard.log")
+                    s.server = .failed(
+                        "Orchard server exited (code \(code)). See ~/.orchard/orchard.log")
                 }
                 s.process = nil
             }
@@ -131,7 +144,7 @@ final class Services {
 
     func restartServer() {
         stopServer()
-        if case .running = server { return } // someone else's server; leave it
+        if case .running = server { return }  // someone else's server; leave it
         startServer()
     }
 
@@ -140,8 +153,10 @@ final class Services {
     // MARK: Setup actions
 
     static func openAppleIntelligenceSettings() {
-        let urls = ["x-apple.systempreferences:com.apple.Siri-Settings.extension",
-                    "x-apple.systempreferences:"]
+        let urls = [
+            "x-apple.systempreferences:com.apple.Siri-Settings.extension",
+            "x-apple.systempreferences:",
+        ]
         for u in urls where NSWorkspace.shared.open(URL(string: u)!) { return }
     }
 
@@ -149,7 +164,8 @@ final class Services {
     /// terms themselves. fm requires root (the agreement is machine-wide) and
     /// a real TTY, so this can't be answered from inside the app.
     func openLicenseInTerminal() {
-        let script = FileManager.default.temporaryDirectory.appendingPathComponent("orchard-fm-license.command")
+        let script = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "orchard-fm-license.command")
         let body = """
             #!/bin/sh
             echo "Orchard needs you to agree to Apple's Foundation Models terms."
@@ -164,9 +180,10 @@ final class Services {
             fi
             """
         try? body.write(to: script, atomically: true, encoding: .utf8)
-        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: script.path)
         NSWorkspace.shared.open(script)
-        fmLicense = nil // re-check on the next refresh
+        fmLicense = nil  // re-check on the next refresh
     }
 
     static func licenseAgreed() async -> Bool {
@@ -181,8 +198,56 @@ final class Services {
             let data = out.fileHandleForReading.readDataToEndOfFile()
             p.waitUntilExit()
             let text = String(decoding: data, as: UTF8.self).lowercased()
-            return p.terminationStatus == 0 && text.contains("agreed to") && !text.contains("not agreed")
+            return p.terminationStatus == 0 && text.contains("agreed to")
+                && !text.contains("not agreed")
         }.value
+    }
+
+    static var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0-dev"
+    }
+
+    /// The running server's version, or nil if it's unreachable or too old to say.
+    static func serverVersion(_ base: URL) async -> String? {
+        var req = URLRequest(url: base.appendingPathComponent("api/health"))
+        req.timeoutInterval = 2
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return json["version"] as? String
+    }
+
+    /// Stops an Orchard server this app didn't start that's listening on our
+    /// port. Only `orchard` processes are touched.
+    func stopStaleServer() async {
+        let port = addr.split(separator: ":").last.map(String.init) ?? "1977"
+        let base = webURL
+        await Task.detached {
+            let lsof = Process()
+            lsof.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+            lsof.arguments = ["-nP", "-t", "-iTCP:\(port)", "-sTCP:LISTEN"]
+            let out = Pipe()
+            lsof.standardOutput = out
+            lsof.standardError = FileHandle.nullDevice
+            guard (try? lsof.run()) != nil else { return }
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            lsof.waitUntilExit()
+            for pid in String(decoding: data, as: UTF8.self).split(separator: "\n").compactMap({
+                Int32($0)
+            }) {
+                var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+                guard proc_pidpath(pid, &buf, UInt32(buf.count)) > 0,
+                    URL(fileURLWithPath: String(cString: buf)).lastPathComponent == "orchard"
+                else { continue }
+                kill(pid, SIGTERM)
+            }
+        }.value
+        var waited = 0
+        while waited < 40, await Self.healthStatus(base) != nil {
+            try? await Task.sleep(for: .milliseconds(100))
+            waited += 1
+        }
+        server = .stopped
     }
 
     static func healthStatus(_ base: URL) async -> Int? {
@@ -195,8 +260,11 @@ final class Services {
     // MARK: Command-line tool
 
     static var cliDirs: [String] {
-        ["/opt/homebrew/bin", "/usr/local/bin",
-         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin").path]
+        [
+            "/opt/homebrew/bin", "/usr/local/bin",
+            FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin")
+                .path,
+        ]
     }
 
     static func findCLI() -> String? {
@@ -205,7 +273,10 @@ final class Services {
 
     /// Symlinks the bundled binary into the first writable bin directory.
     func installCLI() {
-        guard let bin = bundledBinary else { cliMessage = "Binary missing from the app bundle."; return }
+        guard let bin = bundledBinary else {
+            cliMessage = "Binary missing from the app bundle."
+            return
+        }
         let fm = FileManager.default
         let local = Self.cliDirs.last!
         try? fm.createDirectory(atPath: local, withIntermediateDirectories: true)
@@ -214,13 +285,19 @@ final class Services {
             return
         }
         let link = dir + "/orchard"
-        if (try? fm.destinationOfSymbolicLink(atPath: link)) != nil { try? fm.removeItem(atPath: link) }
+        if (try? fm.destinationOfSymbolicLink(atPath: link)) != nil {
+            try? fm.removeItem(atPath: link)
+        }
         do {
             try fm.createSymbolicLink(atPath: link, withDestinationPath: bin)
             cliPath = link
-            let onPath = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").contains { $0 == dir }
+            let onPath =
+                (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").contains {
+                    $0 == dir
+                }
                 || dir != local
-            cliMessage = onPath ? "Installed at \(link)." : "Installed at \(link). Add \(dir) to your PATH."
+            cliMessage =
+                onPath ? "Installed at \(link)." : "Installed at \(link). Add \(dir) to your PATH."
         } catch {
             cliMessage = "Couldn't install: \(error.localizedDescription)"
         }
