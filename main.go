@@ -14,10 +14,15 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
+
+// version is set at build time (build.sh: -ldflags -X main.version=…) and
+// reported by /api/health so the app can tell a stale server from its own.
+var version = "dev"
 
 const usage = `Orchard — local UI for Apple's on-device model (via fm serve)
 
@@ -111,6 +116,17 @@ func serve(guard *Guard, dir string, args []string) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// Started by the app: exit with it, even if it's killed before it can
+	// stop us, so a stale server never outlives it and blocks the next one.
+	if pid, err := strconv.Atoi(os.Getenv("ORCHARD_PARENT_PID")); err == nil && pid > 1 {
+		go func() {
+			for os.Getppid() == pid {
+				time.Sleep(2 * time.Second)
+			}
+			log.Printf("parent %d exited; shutting down", pid)
+			stop()
+		}()
+	}
 	fmDone := make(chan struct{})
 	if *noFM {
 		close(fmDone)

@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 APP=Orchard.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-go build -trimpath -ldflags "-s -w" -o "$APP/Contents/Resources/orchard" .
+go build -trimpath -ldflags "-s -w -X main.version=${ORCHARD_VERSION:-0.0.0-dev}" -o "$APP/Contents/Resources/orchard" .
 cp mac/icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 swiftc -parse-as-library -swift-version 5 -O -target arm64-apple-macos26.4 \
   -o "$APP/Contents/MacOS/Orchard" mac/*.swift
