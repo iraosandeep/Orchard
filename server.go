@@ -33,6 +33,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/chats/{id}/messages", s.sendMessage)
 	mux.HandleFunc("GET /api/tasks", s.listTasks)
 	mux.HandleFunc("POST /api/tasks/{name}", s.runTask)
+	mux.HandleFunc("POST /api/rewrite", s.rewrite)
 	return mux
 }
 
@@ -73,10 +74,10 @@ func (e *sse) send(event string, v any) error {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	b, err := s.guard.Health(r.Context())
 	if err != nil {
-		writeJSON(w, 503, map[string]any{"ok": false, "error": err.Error()})
+		writeJSON(w, 503, map[string]any{"ok": false, "version": version, "error": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"ok": true, "upstream": json.RawMessage(b)})
+	writeJSON(w, 200, map[string]any{"ok": true, "version": version, "upstream": json.RawMessage(b)})
 }
 
 func chatID(r *http.Request) (int64, bool) {
@@ -289,4 +290,34 @@ func (s *Server) runTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ev.send("done", map[string]string{"text": out})
+}
+
+// rewrite streams a rewrite of text with a free-form instruction (used by
+// the Raycast extension; the native Rewrite window calls the model directly).
+func (s *Server) rewrite(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Text        string `json:"text"`
+		Instruction string `json:"instruction"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	msgs, err := RewriteMessages(req.Text, req.Instruction)
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+
+	ev := newSSE(w)
+	var out strings.Builder
+	err = s.guard.Stream(r.Context(), msgs, func(d string) error {
+		out.WriteString(d)
+		return ev.send("delta", map[string]string{"text": d})
+	})
+	if err != nil {
+		ev.send("error", map[string]string{"error": err.Error()})
+		return
+	}
+	ev.send("done", map[string]string{"text": strings.TrimSpace(out.String())})
 }
