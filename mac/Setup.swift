@@ -46,6 +46,7 @@ struct SetupView: View {
 
             Section("Rewrite Selection") {
                 LabeledContent("Shortcut") { ShortcutRecorder() }
+                SelectionWidgetToggle()
                 Text(ShortcutStore.shared.message
                      ?? "Click the shortcut to change it. If nothing happens when you press it, another app may be using the same keys. Pick a different one.")
                     .font(.caption)
@@ -116,6 +117,24 @@ struct ModelBanner: View {
     }
 }
 
+/// On/off for the button that appears next to selected text, and a way to
+/// bring it back in apps it was hidden in.
+struct SelectionWidgetToggle: View {
+    @Bindable var w = SelectionWidget.shared
+
+    var body: some View {
+        Toggle(isOn: $w.enabled) {
+            Text("Show Orchard button when you select text")
+            Text(w.ignored.isEmpty
+                 ? "Hover it for the same actions as the shortcut."
+                 : "Hidden in \(w.ignored.count) app\(w.ignored.count == 1 ? "" : "s").")
+        }
+        if !w.ignored.isEmpty {
+            Button("Show in All Apps Again") { w.clearIgnored() }
+        }
+    }
+}
+
 struct MenuBarContent: View {
     let s = Services.shared
     @Environment(\.openWindow) private var openWindow
@@ -139,6 +158,7 @@ struct MenuBarContent: View {
         Button("Rewrite Selection  \(rewriteShortcutLabel)") {
             Task { await RewriteController.shared.trigger() }
         }
+        Toggle("Show Button on Selected Text", isOn: Bindable(SelectionWidget.shared).enabled)
         Divider()
         Button(s.needsSetup ? "Setup & Status… ⚠︎" : "Setup & Status…") {
             openSettings()
