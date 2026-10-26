@@ -323,8 +323,8 @@ final class RewriteController {
     private func show() {
         if panel == nil {
             let p = KeyPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),
-                styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
+                contentRect: NSRect(x: 0, y: 0, width: 580, height: 400),
+                styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                 backing: .buffered, defer: false)
             p.titleVisibility = .hidden
             p.titlebarAppearsTransparent = true
@@ -333,7 +333,10 @@ final class RewriteController {
             p.hidesOnDeactivate = false
             p.isMovableByWindowBackground = true
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            p.contentView = NSHostingView(rootView: RewriteView(state: state, controller: self))
+            let host = NSHostingView(rootView: RewriteView(state: state, controller: self))
+            host.sizingOptions = [.minSize]  // SwiftUI sets the minimum; the user picks the size
+            p.contentView = host
+            p.setFrameAutosaveName("RewritePanel")  // remember the size between uses
             panel = p
         }
         // Place near the mouse, kept on screen.
@@ -365,23 +368,17 @@ struct RewriteView: View {
                     .lineLimit(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack {
-                    ForEach(Array(RewriteState.presets.enumerated()), id: \.offset) { i, p in
-                        Button(p.name) { state.run(p.instruction) }
-                            .keyboardShortcut(
-                                KeyEquivalent(Character("\(i + 1)")), modifiers: .command
-                            )
-                            .help("⌘\(i + 1)")
+                // One row when it fits; otherwise Translate gets its own line,
+                // so no button is ever truncated.
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        presetButtons
+                        translateMenu
                     }
-                    Menu("Translate to \(state.translateTo)") {
-                        ForEach(RewriteState.languages, id: \.self) { lang in
-                            Button(lang) { state.translate(to: lang) }
-                        }
-                    } primaryAction: {
-                        state.translate(to: state.translateTo)
+                    VStack(alignment: .leading) {
+                        HStack { presetButtons }
+                        translateMenu
                     }
-                    .fixedSize()
-                    .help("Click to translate; open the menu for other languages")
                 }
                 .disabled(state.running)
 
@@ -430,9 +427,30 @@ struct RewriteView: View {
         }
         .padding(16)
         .padding(.top, 8)
-        .frame(width: 460, height: 360)
+        .frame(minWidth: 420, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(.regularMaterial)
         .onAppear { fieldFocused = true }
         .onChange(of: state.original) { fieldFocused = true }
+    }
+
+    @ViewBuilder private var presetButtons: some View {
+        ForEach(Array(RewriteState.presets.enumerated()), id: \.offset) { i, p in
+            Button(p.name) { state.run(p.instruction) }
+                .fixedSize()
+                .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+                .help("⌘\(i + 1)")
+        }
+    }
+
+    private var translateMenu: some View {
+        Menu("Translate to \(state.translateTo)") {
+            ForEach(RewriteState.languages, id: \.self) { lang in
+                Button(lang) { state.translate(to: lang) }
+            }
+        } primaryAction: {
+            state.translate(to: state.translateTo)
+        }
+        .fixedSize()
+        .help("Click to translate; open the menu for other languages")
     }
 }
