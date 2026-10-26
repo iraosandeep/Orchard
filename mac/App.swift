@@ -55,6 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
         MainActor.assumeIsolated {
+            NSApp.servicesProvider = TextServices.shared
+            NSUpdateDynamicServices()
             RewriteController.shared.start()
             SelectionWidget.shared.start()
             Services.shared.start()
