@@ -34,6 +34,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/tasks", s.listTasks)
 	mux.HandleFunc("POST /api/tasks/{name}", s.runTask)
 	mux.HandleFunc("POST /api/rewrite", s.rewrite)
+	mux.HandleFunc("POST /api/translate", s.translate)
 	return mux
 }
 
@@ -308,10 +309,33 @@ func (s *Server) rewrite(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err.Error())
 		return
 	}
+	s.streamText(w, r, msgs)
+}
 
+// translate streams a translation of text into the named language.
+func (s *Server) translate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Text string `json:"text"`
+		To   string `json:"to"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	msgs, err := TranslateMessages(req.Text, req.To)
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	s.streamText(w, r, msgs)
+}
+
+// streamText streams the model's reply as delta events, then done with the
+// trimmed full text (or error).
+func (s *Server) streamText(w http.ResponseWriter, r *http.Request, msgs []Message) {
 	ev := newSSE(w)
 	var out strings.Builder
-	err = s.guard.Stream(r.Context(), msgs, func(d string) error {
+	err := s.guard.Stream(r.Context(), msgs, func(d string) error {
 		out.WriteString(d)
 		return ev.send("delta", map[string]string{"text": d})
 	})

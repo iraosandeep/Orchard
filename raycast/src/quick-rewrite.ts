@@ -1,10 +1,22 @@
-// Shared by the no-view preset commands: rewrite the selection and paste the
+// Shared by the no-view commands: transform the selection and paste the
 // result over it, without opening a window.
 import { Clipboard, LaunchType, Toast, getSelectedText, launchCommand, showHUD, showToast } from "@raycast/api";
 import { OrchardError, PRESETS, Preset, ensureOrchard, rewrite } from "./orchard";
 
-export async function quickRewrite(command: Preset["command"]): Promise<void> {
+export function quickRewrite(command: Preset["command"]): Promise<void> {
   const preset = PRESETS.find((p) => p.command === command)!;
+  return quickRun({
+    progress: preset.progress,
+    done: preset.done,
+    run: (text) => rewrite(text, preset.instruction),
+  });
+}
+
+export async function quickRun(job: {
+  progress: string;
+  done: string;
+  run: (text: string) => Promise<string>;
+}): Promise<void> {
   let text: string;
   try {
     text = await getSelectedText();
@@ -16,15 +28,15 @@ export async function quickRewrite(command: Preset["command"]): Promise<void> {
     return;
   }
 
-  const toast = await showToast({ style: Toast.Style.Animated, title: preset.progress });
+  const toast = await showToast({ style: Toast.Style.Animated, title: job.progress });
   try {
     await ensureOrchard(() => (toast.title = "Starting Orchard…"));
-    toast.title = preset.progress;
-    const result = await rewrite(text, preset.instruction);
+    toast.title = job.progress;
+    const result = await job.run(text);
     if (!result) throw new OrchardError("The model returned nothing. Try again.", "request");
     await toast.hide();
     await Clipboard.paste(result);
-    await showHUD(preset.done);
+    await showHUD(job.done);
   } catch (e) {
     if (e instanceof OrchardError && e.kind === "not-installed") {
       await toast.hide();
@@ -32,7 +44,7 @@ export async function quickRewrite(command: Preset["command"]): Promise<void> {
       return;
     }
     toast.style = Toast.Style.Failure;
-    toast.title = "Rewrite failed";
+    toast.title = "Failed";
     toast.message = e instanceof Error ? e.message : String(e);
   }
 }

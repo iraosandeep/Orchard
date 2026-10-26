@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "orchard",
   "title": "Orchard",
-  "description": "Rewrite selected text with Apple's on-device model, through the Orchard app. Nothing leaves your Mac.",
+  "description": "Rewrite and translate selected text with Apple's on-device model, through the Orchard app. Nothing leaves your Mac.",
   "icon": "icon.png",
   "author": "iraosandeep",
   "categories": [
@@ -48,6 +48,30 @@
       "subtitle": "Orchard",
       "description": "Make the selected text warmer and paste the result over it.",
       "mode": "no-view"
+    },
+    {
+      "name": "translate",
+      "title": "Translate",
+      "subtitle": "Orchard",
+      "description": "Translate the selected text (or the clipboard) into any language.",
+      "mode": "view"
+    },
+    {
+      "name": "translate-selection",
+      "title": "Translate Selection",
+      "subtitle": "Orchard",
+      "description": "Translate the selected text into your default language and paste the result over it.",
+      "mode": "no-view",
+      "preferences": [
+        {
+          "name": "translateTo",
+          "title": "Translate To",
+          "description": "Language to translate into, e.g. English, Hindi or Spanish.",
+          "type": "textfield",
+          "required": false,
+          "default": "English"
+        }
+      ]
     },
     {
       "name": "install-orchard",

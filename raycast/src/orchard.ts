@@ -40,6 +40,9 @@ export const PRESETS = [
 
 export type Preset = (typeof PRESETS)[number];
 
+/** Offered by Translate; any other language can be typed in. */
+export const LANGUAGES = ["English", "Hindi", "Spanish", "French", "German", "Japanese", "Chinese (Simplified)"];
+
 export const INSTALL_COMMAND =
   "curl -fsSL https://github.com/iraosandeep/Orchard/releases/latest/download/install.sh | sh";
 export const RELEASES_URL = "https://github.com/iraosandeep/Orchard/releases/latest";
@@ -134,21 +137,43 @@ export async function ensureOrchard(onLaunching?: () => void): Promise<void> {
 }
 
 /** Streams a rewrite; onDelta gets the text so far. Resolves with the final text. */
-export async function rewrite(
+export function rewrite(
   text: string,
   instruction: string,
   onDelta?: (soFar: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  const res = await fetch(`${baseURL()}/api/rewrite`, {
+  return streamText("/api/rewrite", { text, instruction }, onDelta, signal);
+}
+
+/** Streams a translation of text into `to` (a language name, e.g. "Spanish"). */
+export function translate(
+  text: string,
+  to: string,
+  onDelta?: (soFar: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  return streamText("/api/translate", { text, to }, onDelta, signal);
+}
+
+async function streamText(
+  path: string,
+  body: object,
+  onDelta?: (soFar: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  const res = await fetch(`${baseURL()}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ text, instruction }),
+    body: JSON.stringify(body),
     signal,
   });
-  // 404/405: an Orchard from before /api/rewrite existed.
+  // 404/405: an Orchard from before this endpoint existed.
   if (res.status === 404 || res.status === 405) {
-    throw new OrchardError("This Orchard version is too old for Raycast. Update Orchard and try again.", "request");
+    throw new OrchardError(
+      "This Orchard version is too old for this command. Update Orchard and try again.",
+      "request",
+    );
   }
   if (!res.ok || !res.body) {
     const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -179,7 +204,7 @@ export async function rewrite(
       } else if (event === "done") {
         return payload.text ?? out.trim();
       } else if (event === "error") {
-        throw new OrchardError(payload.error || "Rewrite failed", "request");
+        throw new OrchardError(payload.error || "Orchard failed", "request");
       }
     }
   }
