@@ -73,10 +73,10 @@ func (e *sse) send(event string, v any) error {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	b, err := s.guard.Health(r.Context())
 	if err != nil {
-		writeJSON(w, 503, map[string]any{"ok": false, "error": err.Error()})
+		writeJSON(w, 503, map[string]any{"ok": false, "version": version, "error": err.Error()})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"ok": true, "upstream": json.RawMessage(b)})
+	writeJSON(w, 200, map[string]any{"ok": true, "version": version, "upstream": json.RawMessage(b)})
 }
 
 func chatID(r *http.Request) (int64, bool) {
