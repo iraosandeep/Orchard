@@ -1,5 +1,5 @@
 // The Rewrite Selection shortcut: stored in UserDefaults, recordable from
-// Setup & Status, and re-registered as a global hotkey when it changes.
+// Settings, and re-registered as a global hotkey when it changes.
 import AppKit
 import Carbon.HIToolbox
 import Observation

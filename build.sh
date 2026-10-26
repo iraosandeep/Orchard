@@ -26,6 +26,29 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>26.4</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSServices</key><array>
+    <dict>
+      <key>NSMenuItem</key><dict><key>default</key><string>Rewrite with Orchard…</string></dict>
+      <key>NSMessage</key><string>rewrite</string>
+      <key>NSPortName</key><string>Orchard</string>
+      <key>NSSendTypes</key><array><string>public.utf8-plain-text</string></array>
+      <key>NSRequiredContext</key><dict/>
+    </dict>
+    <dict>
+      <key>NSMenuItem</key><dict><key>default</key><string>Fix Grammar with Orchard</string></dict>
+      <key>NSMessage</key><string>fixGrammar</string>
+      <key>NSPortName</key><string>Orchard</string>
+      <key>NSSendTypes</key><array><string>public.utf8-plain-text</string></array>
+      <key>NSRequiredContext</key><dict/>
+    </dict>
+    <dict>
+      <key>NSMenuItem</key><dict><key>default</key><string>Translate with Orchard</string></dict>
+      <key>NSMessage</key><string>translate</string>
+      <key>NSPortName</key><string>Orchard</string>
+      <key>NSSendTypes</key><array><string>public.utf8-plain-text</string></array>
+      <key>NSRequiredContext</key><dict/>
+    </dict>
+  </array>
 </dict></plist>
 PLIST
 # Sign with a stable local identity so macOS keeps the Accessibility grant
@@ -51,4 +74,6 @@ codesign --force --deep --sign "$SIGN_ID" "$APP"
 touch "$APP"  # refresh cached Dock/Finder icons
 # Register with LaunchServices so tccutil (Reset Permission) can find the app.
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$PWD/$APP"
+# Refresh the Services menu so right-click › Services picks up NSServices changes.
+/System/Library/CoreServices/pbs -update 2>/dev/null || true
 echo "Built $APP"

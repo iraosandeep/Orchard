@@ -34,6 +34,10 @@ final class SelectionWidget {
     @ObservationIgnored private var mouseDownAt: NSPoint?
     @ObservationIgnored private var pending: Task<Void, Never>?
     @ObservationIgnored private var collapse: Task<Void, Never>?
+    /// Where the collapsed badge sits; the card opens from here.
+    @ObservationIgnored private var badgeFrame = NSRect.zero
+    /// The source app's window, when Accessibility reports it.
+    @ObservationIgnored private var windowFrame: NSRect?
 
     static let badgeSize: CGFloat = 26
 
@@ -109,12 +113,13 @@ final class SelectionWidget {
         guard !trimmed.isEmpty else { return }
         text = sel.text
         app = front
+        windowFrame = sel.window
         show(below: sel.bounds, mouse: mouse)
     }
 
-    /// The focused element's selected text, and its on-screen bounds (Cocoa
-    /// coordinates) when the app reports them.
-    static func readSelection() -> (text: String, bounds: NSRect?)? {
+    /// The focused element's selected text, plus its on-screen bounds and its
+    /// window's frame (Cocoa coordinates) when the app reports them.
+    static func readSelection() -> (text: String, bounds: NSRect?, window: NSRect?)? {
         let system = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(system, 0.25)  // never hang on a busy app
         guard let focused: AXUIElement = axAttribute(system, kAXFocusedUIElementAttribute) else { return nil }
@@ -133,14 +138,29 @@ final class SelectionWidget {
             let rect, CFGetTypeID(rect) == AXValueGetTypeID()
         {
             var r = CGRect.zero
-            if AXValueGetValue(rect as! AXValue, .cgRect, &r), r.width > 0 || r.height > 0,
-                let primary = NSScreen.screens.first
-            {
-                // Accessibility measures from the top-left of the main screen.
-                bounds = NSRect(x: r.minX, y: primary.frame.maxY - r.maxY, width: r.width, height: r.height)
+            if AXValueGetValue(rect as! AXValue, .cgRect, &r), r.width > 0 || r.height > 0 {
+                bounds = cocoa(r)
             }
         }
-        return (text, bounds)
+
+        var window: NSRect?
+        if let win: AXUIElement = axAttribute(focused, kAXWindowAttribute),
+            let pos: AXValue = axAttribute(win, kAXPositionAttribute),
+            let size: AXValue = axAttribute(win, kAXSizeAttribute)
+        {
+            var p = CGPoint.zero
+            var s = CGSize.zero
+            if AXValueGetValue(pos, .cgPoint, &p), AXValueGetValue(size, .cgSize, &s), s.width > 0, s.height > 0 {
+                window = cocoa(CGRect(origin: p, size: s))
+            }
+        }
+        return (text, bounds, window)
+    }
+
+    /// Accessibility measures from the top-left of the main screen; Cocoa from the bottom-left.
+    private static func cocoa(_ r: CGRect) -> NSRect? {
+        guard let primary = NSScreen.screens.first else { return nil }
+        return NSRect(x: r.minX, y: primary.frame.maxY - r.maxY, width: r.width, height: r.height)
     }
 
     private static func axAttribute<T>(_ el: AXUIElement, _ name: String) -> T? {
@@ -148,6 +168,9 @@ final class SelectionWidget {
         guard AXUIElementCopyAttributeValue(el, name as CFString, &value) == .success, let value else { return nil }
         if T.self == AXUIElement.self {
             return CFGetTypeID(value) == AXUIElementGetTypeID() ? (value as! T) : nil
+        }
+        if T.self == AXValue.self {
+            return CFGetTypeID(value) == AXValueGetTypeID() ? (value as! T) : nil
         }
         return value as? T
     }
@@ -157,20 +180,21 @@ final class SelectionWidget {
     private func show(below selection: NSRect?, mouse: NSPoint?) {
         let panel = self.panel ?? makePanel()
         expanded = false
-        let size = Self.badgeSize
+        let size = NSHostingView(rootView: SelectionWidgetView(widget: self)).fittingSize
         // Just below the end of the selection; else next to the pointer.
         var origin: NSPoint
         if let s = selection, NSScreen.screens.contains(where: { $0.frame.intersects(s) }) {
-            origin = NSPoint(x: s.maxX - size / 2, y: s.minY - size - 6)
+            origin = NSPoint(x: s.maxX - size.width / 2, y: s.minY - size.height - 6)
             if let mouse, !s.insetBy(dx: -200, dy: -200).contains(mouse) {
-                origin = NSPoint(x: mouse.x + 8, y: mouse.y - size - 8)  // bounds look wrong
+                origin = NSPoint(x: mouse.x + 8, y: mouse.y - size.height - 8)  // bounds look wrong
             }
         } else if let mouse {
-            origin = NSPoint(x: mouse.x + 8, y: mouse.y - size - 8)
+            origin = NSPoint(x: mouse.x + 8, y: mouse.y - size.height - 8)
         } else {
             return  // keyboard selection in an app that doesn't report bounds
         }
-        panel.setFrame(clamp(NSRect(origin: origin, size: NSSize(width: size, height: size))), display: true)
+        badgeFrame = clamp(NSRect(origin: origin, size: size))
+        panel.setFrame(badgeFrame, display: true)
         panel.orderFrontRegardless()
     }
 
@@ -199,17 +223,33 @@ final class SelectionWidget {
         guard let panel, let host else { return }
         expanded = open
         host.layoutSubtreeIfNeeded()
-        let size = open ? host.fittingSize : NSSize(width: Self.badgeSize, height: Self.badgeSize)
-        // Keep the top-left corner (where the badge is) in place.
-        let top = panel.frame.maxY
-        panel.setFrame(
-            clamp(NSRect(x: panel.frame.minX, y: top - size.height, width: size.width, height: size.height)),
-            display: true)
+        guard open else {
+            panel.setFrame(badgeFrame, display: true)
+            return
+        }
+        // Measure with a fresh view: `host` may not have redrawn as the card yet.
+        let size = NSHostingView(rootView: SelectionWidgetView(widget: self)).fittingSize
+        // Room to work with: the source window if we know it, kept on screen.
+        var area = screen(for: badgeFrame)?.visibleFrame ?? .infinite
+        if let w = windowFrame, w.intersects(area) { area = area.intersection(w) }
+        // Open downwards from the badge; if it doesn't fit and there's more
+        // room above, open upwards. Either way the card covers the badge, so
+        // the pointer stays inside it.
+        var r = NSRect(x: badgeFrame.minX, y: badgeFrame.maxY - size.height, width: size.width, height: size.height)
+        let below = badgeFrame.maxY - area.minY
+        let above = area.maxY - badgeFrame.minY
+        if size.height > below, above > below {
+            r.origin.y = badgeFrame.minY
+        }
+        panel.setFrame(clamp(r), display: true)
+    }
+
+    private func screen(for r: NSRect) -> NSScreen? {
+        NSScreen.screens.first { $0.frame.contains(NSPoint(x: r.midX, y: r.midY)) } ?? NSScreen.main
     }
 
     private func clamp(_ r: NSRect) -> NSRect {
-        let screen = NSScreen.screens.first { $0.frame.contains(NSPoint(x: r.midX, y: r.midY)) } ?? NSScreen.main
-        guard let vis = screen?.visibleFrame else { return r }
+        guard let vis = screen(for: r)?.visibleFrame else { return r }
         var r = r
         r.origin.x = min(max(r.minX, vis.minX + 4), vis.maxX - r.width - 4)
         r.origin.y = min(max(r.minY, vis.minY + 4), vis.maxY - r.height - 4)
@@ -267,14 +307,18 @@ struct SelectionWidgetView: View {
             if widget.expanded {
                 card
             } else {
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.green)
-                    .frame(width: SelectionWidget.badgeSize, height: SelectionWidget.badgeSize)
-                    .background(.regularMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(.separator))
-                    .contentShape(Circle())
-                    .onTapGesture { widget.hover(true) }
+                HStack(spacing: 4) {
+                    Image(systemName: "leaf.fill").foregroundStyle(.green)
+                    Text("Orchard")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 9)
+                .frame(height: SelectionWidget.badgeSize)
+                .background(.regularMaterial, in: Capsule())
+                .overlay(Capsule().strokeBorder(.separator))
+                .contentShape(Capsule())
+                .fixedSize()
+                .onTapGesture { widget.hover(true) }
             }
         }
         .onHover { widget.hover($0) }

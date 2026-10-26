@@ -110,7 +110,12 @@ final class RewriteState {
         ("Friendly", "Make it warmer and more friendly."),
     ]
 
+    /// The selected text; editable in the window, and what every action runs on.
     var original = ""
+    /// Whether the window opened with a selection (stays true if `original` is edited to empty).
+    var hasSelection = false
+    /// Changes each time the window opens with new text.
+    var session = 0
     var instruction = ""
     var result = ""
     var running = false
@@ -121,6 +126,8 @@ final class RewriteState {
     func reset(original: String, error: String? = nil) {
         task?.cancel()
         self.original = original
+        hasSelection = !original.isEmpty
+        session += 1
         self.error = error
         instruction = ""
         result = ""
@@ -381,12 +388,18 @@ struct RewriteView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Rewrite Selection", systemImage: "leaf").font(.headline)
 
-            if !state.original.isEmpty {
-                Text(state.original)
+            if state.hasSelection {
+                // Editable: tweak the text here and every action uses the edit.
+                // A text view rather than a field, so Return starts a new line.
+                TextEditor(text: $state.original)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 5)
+                    .frame(height: 68)
+                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
+                    .help("Edit the text before rewriting it")
 
                 // One row when it fits; otherwise Translate gets its own line,
                 // so no button is ever truncated.
@@ -450,27 +463,43 @@ struct RewriteView: View {
         .frame(minWidth: 420, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(.regularMaterial)
         .onAppear { fieldFocused = true }
-        .onChange(of: state.original) { fieldFocused = true }
+        .onChange(of: state.session) { fieldFocused = true }
     }
 
     @ViewBuilder private var presetButtons: some View {
         ForEach(Array(RewriteState.presets.enumerated()), id: \.offset) { i, p in
-            Button(p.name) { state.run(p.instruction) }
+            Button { state.run(p.instruction) } label: { labeled(p.name, key: "⌘\(i + 1)") }
                 .fixedSize()
                 .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
-                .help("⌘\(i + 1)")
         }
     }
 
     private var translateMenu: some View {
-        Menu("Translate to \(state.translateTo)") {
+        Menu {
             ForEach(RewriteState.languages, id: \.self) { lang in
                 Button(lang) { state.translate(to: lang) }
             }
+        } label: {
+            labeled("Translate to \(state.translateTo)", key: "⌘5")
         } primaryAction: {
             state.translate(to: state.translateTo)
         }
         .fixedSize()
         .help("Click to translate; open the menu for other languages")
+        .background {
+            // ⌘5 for the primary action (a Menu's own shortcut would open the menu).
+            Button("") { state.translate(to: state.translateTo) }
+                .keyboardShortcut("5", modifiers: .command)
+                .opacity(0)
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// A button title followed by its shortcut, dimmed, like a menu item.
+    private func labeled(_ title: String, key: String) -> some View {
+        HStack(spacing: 6) {
+            Text(title)
+            Text(key).foregroundStyle(.secondary)
+        }
     }
 }
