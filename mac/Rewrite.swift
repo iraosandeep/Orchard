@@ -274,6 +274,26 @@ final class RewriteController {
         show()
     }
 
+    /// What to start right away when opening the panel from the selection widget.
+    enum Action {
+        case instruction(String)
+        case translate(String)
+    }
+
+    /// Opens the panel for text the selection widget already read from `app`
+    /// (no ⌘C needed) and optionally starts an action. Replace pastes back
+    /// into `app` just like the shortcut does.
+    func open(selection: String, from app: NSRunningApplication?, action: Action?) {
+        sourceApp = app
+        state.reset(original: selection)
+        show()
+        switch action {
+        case .instruction(let i)?: state.run(i)
+        case .translate(let lang)?: state.translate(to: lang)
+        case nil: break
+        }
+    }
+
     /// Sends ⌘C to the frontmost app and returns the copied text, leaving the
     /// user's clipboard as it was.
     private func copySelection() async -> String {

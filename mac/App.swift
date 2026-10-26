@@ -56,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         MainActor.assumeIsolated {
             RewriteController.shared.start()
+            SelectionWidget.shared.start()
             Services.shared.start()
             Updater.shared.start()
         }
