@@ -116,6 +116,10 @@ final class RewriteState {
     var running = false
     var done = false
     var error: String?
+    /// The user's tasks.yaml presets; empty if the Orchard server is down.
+    var tasks: [OrchardTask] = []
+    var selectedTask: OrchardTask?
+    var option = ""
     private var task: Task<Void, Never>?
 
     func reset(original: String, error: String? = nil) {
@@ -126,15 +130,41 @@ final class RewriteState {
         result = ""
         running = false
         done = false
+        selectedTask = nil
+        option = ""
+        Task { tasks = (try? await TaskClient.list(base: Services.shared.webURL)) ?? [] }
     }
 
     func run(_ instruction: String) {
         let instruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !instruction.isEmpty, !original.isEmpty else { return }
+        guard !instruction.isEmpty else { return }
         if let reason = Assistant.unavailableReason {
             error = reason
             return
         }
+        let system = """
+            Rewrite the user's text. Instruction: \(instruction)
+            Output only the rewritten text: no preamble, no quotes, no explanation.
+            """
+        start { Assistant.stream(instructions: system, input: $0) }
+    }
+
+    /// Picks a task; one without an option runs straight away.
+    func choose(_ t: OrchardTask) {
+        selectedTask = t
+        option = t.option?.default ?? ""
+        if t.option == nil { runTask() }
+    }
+
+    func runTask() {
+        guard let t = selectedTask else { return }
+        let base = Services.shared.webURL
+        let option = option
+        start { TaskClient.run(base: base, task: t.name, input: $0, option: option) }
+    }
+
+    private func start(_ stream: @escaping (String) -> AsyncThrowingStream<String, Error>) {
+        guard !original.isEmpty else { return }
         if original.count > rewriteMaxChars {
             error =
                 "Selection is too long (\(original.count) characters). Rewrite handles up to \(rewriteMaxChars) so nothing gets cut off."
@@ -145,14 +175,10 @@ final class RewriteState {
         result = ""
         done = false
         running = true
-        let system = """
-            Rewrite the user's text. Instruction: \(instruction)
-            Output only the rewritten text: no preamble, no quotes, no explanation.
-            """
         let input = original
         task = Task {
             do {
-                for try await partial in Assistant.stream(instructions: system, input: input) {
+                for try await partial in stream(input) {
                     result = partial
                 }
                 done = !result.isEmpty
@@ -294,7 +320,7 @@ final class RewriteController {
     private func show() {
         if panel == nil {
             let p = KeyPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 460, height: 360),
+                contentRect: NSRect(x: 0, y: 0, width: 460, height: 400),
                 styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
                 backing: .buffered, defer: false)
             p.titleVisibility = .hidden
@@ -347,6 +373,30 @@ struct RewriteView: View {
                 }
                 .disabled(state.running)
 
+                if !state.tasks.isEmpty {
+                    HStack {
+                        Menu(state.selectedTask?.label ?? "Run a task…") {
+                            ForEach(state.tasks) { t in Button(t.label) { state.choose(t) } }
+                        }
+                        .fixedSize()
+                        if let opt = state.selectedTask?.option {
+                            if let choices = opt.choices, !choices.isEmpty {
+                                Picker(opt.label, selection: $state.option) {
+                                    ForEach(choices, id: \.self) { Text($0).tag($0) }
+                                }
+                                .labelsHidden()
+                                .fixedSize()
+                            } else {
+                                TextField(opt.label, text: $state.option)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onSubmit { state.runTask() }
+                            }
+                            Button("Run") { state.runTask() }
+                        }
+                    }
+                    .disabled(state.running)
+                }
+
                 TextField("Or describe a change…", text: $state.instruction)
                     .textFieldStyle(.roundedBorder)
                     .focused($fieldFocused)
@@ -392,7 +442,7 @@ struct RewriteView: View {
         }
         .padding(16)
         .padding(.top, 8)
-        .frame(width: 460, height: 360)
+        .frame(width: 460, height: 400)
         .background(.regularMaterial)
         .onAppear { fieldFocused = true }
         .onChange(of: state.original) { fieldFocused = true }

@@ -53,8 +53,10 @@ Quitting Orchard (⌘Q or from the menu bar) stops the server and any `fm serve`
 
 ### Rewrite Selection (⌃⌥R by default, any app)
 1. Select text anywhere and press ⌃⌥R.
-2. Pick **Fix Grammar / Shorter / Formal / Friendly** (⌘1–4) or type your own instruction.
-3. Press ⌘Return to replace the selection. Your clipboard is restored afterwards.
+2. Pick **Fix Grammar / Shorter / Formal / Friendly** (⌘1–4), type your own instruction, or choose one of your [tasks](#custom-tasks) from **Run a task…** (fill in its option, like Extract's fields, then **Run**).
+3. Press ⌘Return to replace the selection, or **Copy** the result. Your clipboard is restored afterwards.
+
+Tasks run through the Orchard server, so they give the same results as the browser and CLI, and the menu only appears while the server is running.
 
 To change the shortcut, open Setup & Status › Rewrite Selection, click it and press a new combination; it needs at least two modifier keys, or use a function key. **Reset** restores ⌃⌥R. Selections over 6,000 characters are refused rather than cut off. Rewrite uses Apple's permissive guardrails for transforming text you supply, so ordinary text is rarely blocked.
 
