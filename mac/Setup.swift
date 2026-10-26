@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsView: View {
     let s = Services.shared
     @Bindable var rewrite = RewriteController.shared.state
+    @AppStorage("systemPrompt") private var systemPrompt = defaultSystemPrompt
 
     var body: some View {
         Form {
@@ -19,6 +20,22 @@ struct SettingsView: View {
                 if s.modelReason != nil {
                     Text("Chat and Rewrite need Apple Intelligence. Turn it on under Apple Intelligence & Siri; the model may take a while to download. Orchard picks it up automatically.")
                 }
+            }
+
+            Section {
+                TextEditor(text: $systemPrompt)
+                    .font(.body)
+                    .frame(minHeight: 70)
+                    .scrollContentBackground(.hidden)
+                HStack {
+                    Spacer()
+                    Button("Reset") { systemPrompt = defaultSystemPrompt }
+                        .disabled(systemPrompt == defaultSystemPrompt)
+                }
+            } header: {
+                Text("Chat Instructions")
+            } footer: {
+                Text("The system prompt for all your chats. / tasks use their own instructions.")
             }
 
             Section("Rewrite Selection") {

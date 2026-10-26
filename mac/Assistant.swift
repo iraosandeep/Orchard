@@ -94,9 +94,11 @@ enum Assistant {
     }
 
     /// Streams the reply; each element is the full text so far.
-    static func stream(_ f: Fitted) -> AsyncThrowingStream<String, Error> {
+    static func stream(_ f: Fitted, model: SystemLanguageModel = model)
+        -> AsyncThrowingStream<String, Error>
+    {
         stream(
-            session: LanguageModelSession(transcript: Transcript(entries: f.history)),
+            session: LanguageModelSession(model: model, transcript: Transcript(entries: f.history)),
             prompt: f.prompt)
     }
 
