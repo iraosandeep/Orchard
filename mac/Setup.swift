@@ -1,14 +1,16 @@
 import SwiftUI
 
-/// "Setup & Status": every dependency with a one-click fix where macOS allows.
-struct SetupView: View {
+/// Settings (⌘,): everything on one resizable page, every dependency with a
+/// one-click fix where macOS allows.
+struct SettingsView: View {
     let s = Services.shared
+    @Bindable var rewrite = RewriteController.shared.state
 
     var body: some View {
         Form {
             Section {
-                row("Apple Intelligence", ok: s.modelReason == nil,
-                    detail: s.modelReason ?? "Ready · on-device, \(Assistant.contextSize)-token context") {
+                StatusRow("Apple Intelligence", ok: s.modelReason == nil,
+                          detail: s.modelReason ?? "Ready · on-device, \(Assistant.contextSize)-token context") {
                     Button("Open Settings…") { Services.openAppleIntelligenceSettings() }
                 }
             } header: {
@@ -19,16 +21,52 @@ struct SetupView: View {
                 }
             }
 
+            Section("Rewrite Selection") {
+                LabeledContent("Shortcut") { ShortcutRecorder() }
+                Text(ShortcutStore.shared.message
+                     ?? "Click the shortcut to change it. If nothing happens when you press it, another app may be using the same keys. Pick a different one.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                SelectionWidgetToggle()
+                StatusRow("Accessibility", ok: s.accessibility,
+                          detail: s.accessibility ? "Allowed" : "Needed to copy and replace text in other apps") {
+                    HStack {
+                        Button("Reset") { Keys.resetTrust(); _ = Keys.requestTrust() }
+                            .help("Use this if Orchard already looks switched on in System Settings")
+                        Button("Allow…") { _ = Keys.requestTrust(); Keys.openAccessibilitySettings() }
+                    }
+                }
+            }
+
             Section {
-                row("fm tool", ok: s.fmInstalled,
-                    detail: s.fmInstalled ? Services.fmPath : "Not found. It ships with macOS 26 or later.") { EmptyView() }
+                Picker("Translate to", selection: $rewrite.translateTo) {
+                    ForEach(RewriteState.languages, id: \.self) { Text($0) }
+                }
+            } header: {
+                Text("Translate")
+            } footer: {
+                Text("Used by Translate (⌘5), the selection button and Services › Translate with Orchard.")
+            }
+
+            UpdatesSection()
+
+            Section("Command Line") {
+                StatusRow("orchard", ok: s.cliPath != nil,
+                          detail: s.cliMessage ?? s.cliPath ?? "Not installed. Lets you run tasks like 'orchard run commit' from scripts and git hooks.") {
+                    Button("Install") { s.installCLI() }
+                }
+            }
+
+            Section {
+                StatusRow("fm tool", ok: s.fmInstalled,
+                          detail: s.fmInstalled ? Services.fmPath : "Not found. It ships with macOS 26 or later.") { EmptyView() }
                 if s.fmInstalled {
-                    row("fm license", ok: s.fmLicense == true,
-                        detail: s.fmLicense == nil ? "Checking…" : s.fmLicense! ? "Agreed" : "Not agreed yet. fm serve won't run until you agree.") {
+                    StatusRow("fm license", ok: s.fmLicense == true,
+                              detail: s.fmLicense == nil ? "Checking…" : s.fmLicense! ? "Agreed" : "Not agreed yet. fm serve won't run until you agree.") {
                         Button("Review & Agree…") { s.openLicenseInTerminal() }
                     }
                 }
-                row("Orchard server", ok: isRunning(fmToo: true), detail: s.serverSummary) {
+                StatusRow("Orchard server", ok: isRunning(fmToo: true), detail: s.serverSummary) {
                     if s.ownsServer || !isRunning(fmToo: false) {
                         Button(isRunning(fmToo: false) ? "Restart" : "Start") { s.restartServer() }
                     }
@@ -41,38 +79,29 @@ struct SetupView: View {
             } header: {
                 Text("Tasks & fm serve")
             } footer: {
-                Text("The Tasks screen and `orchard run` use fm serve, which Orchard starts and restarts for you. Chat doesn't need it.")
+                Text("Tasks and `orchard run` use fm serve, which Orchard starts and restarts for you. Chat doesn't need it.")
             }
 
-            Section("Rewrite Selection") {
-                LabeledContent("Shortcut") { ShortcutRecorder() }
-                SelectionWidgetToggle()
-                Text(ShortcutStore.shared.message
-                     ?? "Click the shortcut to change it. If nothing happens when you press it, another app may be using the same keys. Pick a different one.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                row("Accessibility", ok: s.accessibility,
-                    detail: s.accessibility ? "Allowed" : "Needed to copy and replace text in other apps") {
-                    HStack {
-                        Button("Reset") { Keys.resetTrust(); _ = Keys.requestTrust() }
-                            .help("Use this if Orchard already looks switched on in Settings")
-                        Button("Allow…") { _ = Keys.requestTrust(); Keys.openAccessibilitySettings() }
-                    }
+            Section("Help & Feedback") {
+                FeedbackRow("Report a Bug", systemImage: "ladybug") {
+                    NSWorkspace.shared.open(Feedback.newIssue(bug: true))
                 }
-            }
-
-            UpdatesSection()
-
-            Section("Command Line") {
-                row("orchard", ok: s.cliPath != nil,
-                    detail: s.cliMessage ?? s.cliPath ?? "Not installed. Lets you run tasks like 'orchard run commit' from scripts and git hooks.") {
-                    Button("Install") { s.installCLI() }
+                FeedbackRow("Request a Feature", systemImage: "lightbulb") {
+                    NSWorkspace.shared.open(Feedback.newIssue(bug: false))
+                }
+                EmailRow()
+                FeedbackRow("Release Notes", systemImage: "doc.text") {
+                    NSWorkspace.shared.open(Feedback.repo.appending(path: "releases"))
+                }
+                FeedbackRow("Show Logs in Finder", systemImage: "folder", external: false) {
+                    Feedback.showLogs()
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(minWidth: 420, idealWidth: 520, maxWidth: .infinity,
+               minHeight: 320, idealHeight: 705, maxHeight: .infinity)
+        .background(ResizableWindow())
         .task { await s.refresh() }
     }
 
@@ -80,9 +109,150 @@ struct SetupView: View {
         if case .running(let fmUp) = s.server { return fmToo ? fmUp : true }
         return false
     }
+}
 
-    @ViewBuilder
-    func row(_ title: String, ok: Bool, detail: String, @ViewBuilder fix: () -> some View) -> some View {
+/// A System Settings–style row: icon, title, and an arrow; the whole row is clickable.
+private struct FeedbackRow: View {
+    let title: String
+    let systemImage: String
+    var external = true
+    let action: () -> Void
+
+    init(_ title: String, systemImage: String, external: Bool = true, action: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.external = external
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                Image(systemName: external ? "arrow.up.right" : "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// "Email" with the address underneath and a copy icon that confirms with a checkmark.
+private struct EmailRow: View {
+    @ViewState private var copied = false
+
+    var body: some View {
+        HStack {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Email")
+                    Text(Feedback.email).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
+            } icon: {
+                Image(systemName: "envelope")
+            }
+            Spacer()
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(Feedback.email, forType: .string)
+                copied = true
+                Task {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    copied = false
+                }
+            } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .foregroundStyle(copied ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                    .frame(width: 18)
+            }
+            .buttonStyle(.borderless)
+            .help(copied ? "Copied" : "Copy email address")
+        }
+    }
+}
+
+/// SwiftUI creates the Settings window without a resize handle, and for
+/// stretchy content it opens it at its stock 900×450. Make it resizable,
+/// restore the size the user last chose, or else open at a size that fits.
+private struct ResizableWindow: NSViewRepresentable {
+    static let autosave = "OrchardSettings"
+    static let defaultSize = NSSize(width: 520, height: 705)
+
+    func makeNSView(context: Context) -> NSView { Probe() }
+    func updateNSView(_ view: NSView, context: Context) {}
+
+    private final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            guard let w = window else { return }
+            w.styleMask.insert(.resizable)
+            // After SwiftUI has applied its own size for this showing.
+            DispatchQueue.main.async {
+                if !w.setFrameUsingName(ResizableWindow.autosave) {
+                    w.setContentSize(ResizableWindow.defaultSize)
+                    w.center()
+                }
+                w.setFrameAutosaveName(ResizableWindow.autosave)
+            }
+        }
+    }
+}
+
+/// Links to GitHub issues (pre-filled with what a bug report needs) and logs.
+enum Feedback {
+    static let repo = URL(string: "https://github.com/iraosandeep/Orchard")!
+    static let email = "iraosandeep.dev@gmail.com"
+
+    /// Versions and status, so a report doesn't need a round trip to ask for them.
+    @MainActor static var env: String {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        return """
+            Orchard \(Updater.shared.current) · macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · \
+            model: \(Services.shared.modelReason ?? "ready") · server: \(Services.shared.serverSummary)
+            """
+    }
+
+    @MainActor static func newIssue(bug: Bool) -> URL {
+        let body = bug
+            ? "**What happened?**\n\n\n**What did you expect?**\n\n\n**Steps to reproduce**\n1. \n\n---\n\(env)"
+            : "**What would you like Orchard to do?**\n\n\n**Why would it help?**\n\n\n---\n\(env)"
+        var c = URLComponents(url: repo.appending(path: "issues/new"), resolvingAgainstBaseURL: false)!
+        c.queryItems = [
+            URLQueryItem(name: "labels", value: bug ? "bug" : "enhancement"),
+            URLQueryItem(name: "body", value: body),
+        ]
+        return c.url!
+    }
+
+    static func showLogs() {
+        let dir = ProcessInfo.processInfo.environment["ORCHARD_HOME"].map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".orchard")
+        let log = dir.appendingPathComponent("orchard.log")
+        if FileManager.default.fileExists(atPath: log.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([log])
+        } else {
+            NSWorkspace.shared.open(dir)
+        }
+    }
+}
+
+/// A check or warning icon, a title and detail, and a fix button when not OK.
+private struct StatusRow<Fix: View>: View {
+    let title: String
+    let ok: Bool
+    let detail: String
+    @ViewBuilder let fix: Fix
+
+    init(_ title: String, ok: Bool, detail: String, @ViewBuilder fix: () -> Fix) {
+        self.title = title
+        self.ok = ok
+        self.detail = detail
+        self.fix = fix()
+    }
+
+    var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .foregroundStyle(ok ? .green : .orange)
@@ -91,7 +261,7 @@ struct SetupView: View {
                 Text(detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             Spacer()
-            if !ok { fix() }
+            if !ok { fix }
         }
     }
 }
@@ -153,19 +323,21 @@ struct MenuBarContent: View {
             NSApp.activate()
         }
         .keyboardShortcut("o")
-        Button("Open Tasks in Browser") { NSWorkspace.shared.open(s.webURL) }
-            .disabled({ if case .running = s.server { false } else { true } }())
         Button("Rewrite Selection  \(rewriteShortcutLabel)") {
             Task { await RewriteController.shared.trigger() }
         }
         Toggle("Show Button on Selected Text", isOn: Bindable(SelectionWidget.shared).enabled)
         Divider()
-        Button(s.needsSetup ? "Setup & Status… ⚠︎" : "Setup & Status…") {
+        Button(s.needsSetup ? "Settings… ⚠︎" : "Settings…") {
             openSettings()
             NSApp.activate()
         }
         .keyboardShortcut(",")
         Button("Check for Updates…") { Task { await Updater.shared.check(userInitiated: true) } }
+        Divider()
+        // The native app covers everything; the browser UI is a fallback.
+        Button("Open Tasks in Browser") { NSWorkspace.shared.open(s.webURL) }
+            .disabled({ if case .running = s.server { false } else { true } }())
         Button("Quit Orchard") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }

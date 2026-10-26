@@ -27,21 +27,12 @@ struct OrchardApp: App {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { Task { await Updater.shared.check(userInitiated: true) } }
             }
-            CommandGroup(replacing: .appSettings) {
-                SetupCommand()
-            }
         }
 
-        Settings { SetupView() }
+        Settings { SettingsView() }
+            .windowResizability(.contentMinSize)
 
         MenuBarExtra("Orchard", systemImage: "leaf") { MenuBarContent() }
-    }
-}
-
-struct SetupCommand: View {
-    @Environment(\.openSettings) private var openSettings
-    var body: some View {
-        Button("Setup & Status…") { openSettings() }.keyboardShortcut(",")
     }
 }
 
