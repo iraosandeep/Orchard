@@ -18,7 +18,7 @@ Pick **Fix Grammar ⌘1 · Shorter ⌘2 · Formal ⌘3 · Friendly ⌘4 · Trans
 One click translates into your default language (choose it in Settings), or pick another from the Translate menu.
 
 ### Chat
-A native chat window with streaming replies, markdown and per-chat instructions. **⌘N** starts a new chat. Chats are saved on your Mac.
+A native chat window with streaming replies. Type **/** to run a task on your text: Summarize, Extract, Draft a reply, Translate, or any task from your `tasks.yaml`. **Return** sends, **Shift+Return** starts a new line, and **⌘N** starts a new chat. Set the instructions for all your chats in Settings › Chat Instructions. Chats are saved on your Mac.
 
 ### Tasks and the command line
 Summarize, extract fields, classify, or write a commit message from a diff:

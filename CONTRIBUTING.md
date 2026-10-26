@@ -61,6 +61,7 @@ Chats live in `~/.orchard/orchard.db`, shared by the native app and the web UI.
 
 ```sh
 orchard tasks                                  # list presets
+orchard tasks --json                           # the same as JSON (the chat window reads this for / tasks)
 pbpaste | orchard run summarize
 git diff --cached | orchard run commit
 echo "Invoice from Acme, Mar 3, $1,240" | orchard run extract -o "vendor, date, total"

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ Usage:
                                                    start the web UI (starts and
                                                    keeps fm serve running)
   orchard run <task> [-o option] < input           run a task on stdin
-  orchard tasks                                    list tasks
+  orchard tasks [--json]                           list tasks
 
 Environment:
   ORCHARD_FM_URL   fm serve base URL (default http://127.0.0.1:1976)
@@ -62,7 +63,7 @@ func main() {
 	case "run":
 		err = run(guard, dir, args)
 	case "tasks":
-		err = listTasks(dir)
+		err = listTasks(dir, len(args) > 0 && args[0] == "--json")
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 	default:
@@ -214,10 +215,13 @@ func run(guard *Guard, dir string, args []string) error {
 	return nil
 }
 
-func listTasks(dir string) error {
+func listTasks(dir string, asJSON bool) error {
 	tasks, err := LoadTasks(dir)
 	if err != nil {
 		return err
+	}
+	if asJSON { // read by the app's chat window for its / commands
+		return json.NewEncoder(os.Stdout).Encode(tasks)
 	}
 	for _, t := range tasks {
 		extra := ""

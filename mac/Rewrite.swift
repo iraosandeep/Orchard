@@ -386,7 +386,11 @@ struct RewriteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Rewrite Selection", systemImage: "leaf").font(.headline)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                AILogo()
+                Text("Rewrite Selection")
+            }
+            .font(.headline)
 
             if state.hasSelection {
                 // Editable: tweak the text here and every action uses the edit.
@@ -435,10 +439,13 @@ struct RewriteView: View {
 
             if state.running || !state.result.isEmpty {
                 ScrollView {
-                    Text(state.result.isEmpty ? "…" : state.result)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        AILogo(active: state.running)
+                        ReplyText(text: AttributedString(state.result), streaming: state.running)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(10)
                 }
                 .frame(maxHeight: .infinity)
                 .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
@@ -447,7 +454,6 @@ struct RewriteView: View {
             }
 
             HStack {
-                if state.running { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("Cancel") { controller.close() }.keyboardShortcut(.cancelAction)
                 Button("Copy") { controller.copyResult() }.disabled(!state.done)
