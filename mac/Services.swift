@@ -53,14 +53,41 @@ final class Services {
             {
                 await stopStaleServer()
             }
-            if server == .stopped { startServer() }
+            await ensureServer()
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in
             Task { @MainActor in await Services.shared.refresh() }
         }
     }
 
+    /// Starts the server unless one is up. When the background agent is on,
+    /// launchd runs it, so wait for that instead of starting a second one.
+    func ensureServer() async {
+        await refresh()
+        if LoginItems.shared.agentActive {
+            var waited = 0
+            while waited < 30, case .stopped = server {
+                try? await Task.sleep(for: .milliseconds(500))
+                await refresh()
+                waited += 1
+            }
+            if server == .stopped {
+                // Something else (e.g. a hung server from an old copy) may hold
+                // the port; clear it so launchd's next try can bind.
+                await stopStaleServer()
+                LoginItems.shared.restartAgent()
+                server = .starting
+            }
+        } else if server == .stopped {
+            startServer()
+        }
+    }
+
     func refresh() async {
+        // Agent approved in System Settings after the app started its own
+        // server: hand the port over, or launchd keeps relaunching the agent.
+        LoginItems.shared.refresh()
+        if LoginItems.shared.agentActive, process?.isRunning == true { stopServer() }
         modelReason = Assistant.unavailableReason
         accessibility = Keys.trusted
         fmInstalled = FileManager.default.isExecutableFile(atPath: Self.fmPath)
@@ -143,12 +170,17 @@ final class Services {
     }
 
     func restartServer() {
+        if LoginItems.shared.agentActive {
+            LoginItems.shared.restartAgent()
+            server = .starting
+            return
+        }
         stopServer()
         if case .running = server { return }  // someone else's server; leave it
         startServer()
     }
 
-    var ownsServer: Bool { process?.isRunning == true }
+    var ownsServer: Bool { process?.isRunning == true || LoginItems.shared.agentActive }
 
     // MARK: Setup actions
 

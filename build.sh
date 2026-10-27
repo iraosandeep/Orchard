@@ -51,6 +51,29 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   </array>
 </dict></plist>
 PLIST
+# The server as a launchd agent (System Settings › Login Items), registered by
+# the app with SMAppService so it runs in the background after the app quits.
+mkdir -p "$APP/Contents/Library/LaunchAgents"
+cat > "$APP/Contents/Library/LaunchAgents/local.orchard.server.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>local.orchard.server</string>
+  <key>BundleProgram</key><string>Contents/Resources/orchard</string>
+  <key>ProgramArguments</key><array>
+    <string>orchard</string><string>serve</string><string>-addr</string><string>127.0.0.1:1977</string>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin</string>
+    <key>ORCHARD_LOG</key><string>orchard.log</string>
+  </dict>
+  <key>AssociatedBundleIdentifiers</key><array><string>local.orchard</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>2</integer>
+  <key>ProcessType</key><string>Background</string>
+</dict></plist>
+PLIST
 # Sign with a stable local identity so macOS keeps the Accessibility grant
 # across rebuilds (an ad-hoc signature changes every build, which silently
 # invalidates the grant). The certificate is created once in the login

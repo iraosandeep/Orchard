@@ -45,13 +45,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let icon = NSImage(contentsOf: url) {
             NSApp.applicationIconImage = icon
         }
+        let atLogin = LoginItems.launchedAtLogin
         MainActor.assumeIsolated {
+            LoginItems.shared.applyDockPolicy()
+            LoginItems.shared.start()  // before Services, so it uses the background server
             NSApp.servicesProvider = TextServices.shared
             NSUpdateDynamicServices()
             RewriteController.shared.start()
             SelectionWidget.shared.start()
             Services.shared.start()
             Updater.shared.start()
+        }
+        // Opened at login, or set to: start quietly in the menu bar, without the chat window.
+        let showChat = MainActor.assumeIsolated { LoginItems.shared.showChatAtLaunch }
+        if atLogin || !showChat {
+            DispatchQueue.main.async {
+                for w in NSApp.windows where w.identifier?.rawValue.hasPrefix("main") == true {
+                    w.close()
+                }
+            }
+        }
+        if !atLogin {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                MainActor.assumeIsolated { LoginItems.shared.askOpenAtLoginIfNeeded() }
+            }
         }
     }
 
