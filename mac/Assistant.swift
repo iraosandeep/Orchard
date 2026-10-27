@@ -1,5 +1,5 @@
 // Talks to Apple's on-device model through FoundationModels directly (no
-// fm serve needed). Same rules as the Go guard: plain text, no tools, and
+// fm serve needed). Chat can use explicitly enabled, read-only tools, and
 // every request trimmed to fit the context window.
 import Foundation
 import FoundationModels
@@ -97,8 +97,15 @@ enum Assistant {
     static func stream(_ f: Fitted, model: SystemLanguageModel = model)
         -> AsyncThrowingStream<String, Error>
     {
+        stream(f, model: model, tools: [])
+    }
+
+    static func stream(_ f: Fitted, model: SystemLanguageModel = model, tools: [any Tool])
+        -> AsyncThrowingStream<String, Error>
+    {
         stream(
-            session: LanguageModelSession(model: model, transcript: Transcript(entries: f.history)),
+            session: LanguageModelSession(
+                model: model, tools: tools, transcript: Transcript(entries: f.history)),
             prompt: f.prompt)
     }
 

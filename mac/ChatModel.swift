@@ -95,13 +95,30 @@ final class ChatModel {
                 system: cmd.task.instructions(option: cmd.option), history: [], prompt: prompt,
                 model: Assistant.rewriteModel)
         } else {
-            run(stored: text, title: text, system: Self.instructions, history: messages, prompt: text)
+            run(stored: text, title: text, system: Self.chatInstructions, history: messages, prompt: text,
+                tools: Self.enabledTools)
         }
+    }
+
+    private static var enabledTools: [any Tool] {
+        var tools: [any Tool] = []
+        if UserDefaults.standard.bool(forKey: "calendarToolEnabled") { tools.append(CalendarEventsTool()) }
+        if UserDefaults.standard.bool(forKey: "remindersToolEnabled") { tools.append(RemindersTool()) }
+        return tools
+    }
+
+    private static var chatInstructions: String {
+        let date = DateFormatter.localizedString(from: Date(), dateStyle: .full, timeStyle: .short)
+        var instructions = Self.instructions + "\n\nThe current local date and time is \(date)."
+        if !enabledTools.isEmpty {
+            instructions += " You can read the user's calendar and reminders on this Mac with your enabled tools. Use them when asked about schedules, events, meetings, plans, availability, to-dos, or reminders. Do not guess."
+        }
+        return instructions
     }
 
     private func run(
         stored: String, title: String, system: String, history: [ChatMessage], prompt: String = "",
-        model: SystemLanguageModel = Assistant.model
+        model: SystemLanguageModel = Assistant.model, tools: [any Tool] = []
     ) {
         guard var chat = current else { return }
         if let reason = Assistant.unavailableReason {
@@ -130,7 +147,7 @@ final class ChatModel {
                 }
                 if f.truncated { notes.append("your message was truncated to fit") }
                 note = notes.joined(separator: " · ")
-                for try await partial in Assistant.stream(f, model: model) {
+                for try await partial in Assistant.stream(f, model: model, tools: tools) {
                     reply = partial
                     streaming = partial
                 }

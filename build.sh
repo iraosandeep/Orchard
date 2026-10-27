@@ -24,6 +24,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>${ORCHARD_VERSION:-0.0.0-dev}</string>
   <key>CFBundleVersion</key><string>${ORCHARD_VERSION:-0.0.0-dev}</string>
   <key>LSMinimumSystemVersion</key><string>26.4</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Orchard reads your calendars to answer questions in chat.</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>Orchard reads your open reminders to answer questions in chat.</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSServices</key><array>

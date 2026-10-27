@@ -23,6 +23,15 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Calendar", isOn: toolSetting("calendarToolEnabled"))
+                Toggle("Reminders", isOn: toolSetting("remindersToolEnabled"))
+            } header: {
+                Text("Chat Tools")
+            } footer: {
+                Text("Enabled tools let Orchard answer calendar and reminder questions in chat. Access is read-only and stays on this Mac. macOS asks for access when a tool is first used.")
+            }
+
+            Section {
                 TextEditor(text: $systemPrompt)
                     .font(.body)
                     .frame(minHeight: 70)
@@ -125,6 +134,10 @@ struct SettingsView: View {
     func isRunning(fmToo: Bool) -> Bool {
         if case .running(let fmUp) = s.server { return fmToo ? fmUp : true }
         return false
+    }
+
+    private func toolSetting(_ key: String) -> Binding<Bool> {
+        Binding(get: { UserDefaults.standard.bool(forKey: key) }, set: { UserDefaults.standard.set($0, forKey: key) })
     }
 }
 
