@@ -46,7 +46,14 @@ final class SelectionWidget {
         let global: [(NSEvent.EventTypeMask, (NSEvent) -> Void)] = [
             (.leftMouseDown, { [weak self] e in self?.mouseDownAt = NSEvent.mouseLocation; self?.hide() }),
             (.leftMouseUp, { [weak self] e in self?.mouseUp(e) }),
-            (.keyDown, { [weak self] _ in self?.hide() }),
+            (.keyDown, { [weak self] e in
+                guard let self else { return }
+                self.hide()
+                let flags = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                if flags.contains(.command), e.keyCode == 0 {
+                    self.scheduleCheck(near: NSEvent.mouseLocation)
+                }
+            }),
             (.keyUp, { [weak self] e in self?.keyUp(e) }),
             (.scrollWheel, { [weak self] _ in self?.hide() }),
         ]
@@ -87,34 +94,38 @@ final class SelectionWidget {
     private func keyUp(_ e: NSEvent) {
         // Shift+arrows/Home/End extend a selection; ⌘A selects all.
         let flags = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let selectAll = flags.contains(.command) && e.charactersIgnoringModifiers?.lowercased() == "a"
+        let selectAll = flags.contains(.command) && e.keyCode == 0
         guard flags.contains(.shift) || selectAll else { return }
-        scheduleCheck(near: nil)
+        scheduleCheck(near: NSEvent.mouseLocation)
     }
 
     /// The app updates its selection just after the event; check a moment later.
     private func scheduleCheck(near mouse: NSPoint?) {
         pending?.cancel()
         pending = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(120))
-            guard !Task.isCancelled else { return }
-            self?.check(near: mouse)
+            for delay in [120, 240, 400] {
+                try? await Task.sleep(for: .milliseconds(delay))
+                guard !Task.isCancelled, let self else { return }
+                if self.check(near: mouse) { return }
+            }
         }
     }
 
-    private func check(near mouse: NSPoint?) {
+    @discardableResult
+    private func check(near mouse: NSPoint?) -> Bool {
         guard enabled, AXIsProcessTrusted(),
             let front = NSWorkspace.shared.frontmostApplication,
             front.processIdentifier != ProcessInfo.processInfo.processIdentifier,
             !ignored.contains(front.bundleIdentifier ?? ""),
             let sel = Self.readSelection()
-        else { return }
+        else { return false }
         let trimmed = sel.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return false }
         text = sel.text
         app = front
         windowFrame = sel.window
         show(below: sel.bounds, mouse: mouse)
+        return true
     }
 
     /// The focused element's selected text, plus its on-screen bounds and its
@@ -191,7 +202,7 @@ final class SelectionWidget {
         } else if let mouse {
             origin = NSPoint(x: mouse.x + 8, y: mouse.y - size.height - 8)
         } else {
-            return  // keyboard selection in an app that doesn't report bounds
+            return
         }
         badgeFrame = clamp(NSRect(origin: origin, size: size))
         panel.setFrame(badgeFrame, display: true)
