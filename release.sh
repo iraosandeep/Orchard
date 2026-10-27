@@ -26,6 +26,11 @@ if [ "$DRY" != "--dry-run" ]; then
 fi
 
 ORCHARD_VERSION=${VERSION#v} ./build.sh
+BUILT_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Orchard.app/Contents/Info.plist)
+[ "$BUILT_VERSION" = "${VERSION#v}" ] || {
+  echo "Orchard.app is version $BUILT_VERSION, expected ${VERSION#v}. Refusing to package the wrong version." >&2
+  exit 1
+}
 codesign -d -r- Orchard.app 2>&1 | grep -q "certificate leaf = H\"$RELEASE_CERT\"" || {
   echo "Orchard.app isn't signed by the release certificate ($RELEASE_CERT)." >&2
   echo "Existing users couldn't update to it. Import the release identity and rebuild." >&2

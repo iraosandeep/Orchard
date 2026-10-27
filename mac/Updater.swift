@@ -141,8 +141,12 @@ final class Updater {
 
     func install(_ r: Release) async {
         let dest = Bundle.main.bundleURL
+        if dest.pathComponents.contains("AppTranslocation") {
+            state = .failed("This copy is running from macOS's temporary App Translocation folder, so it can't update itself. Reinstall Orchard with the command at https://github.com/iraosandeep/Orchard#install, then open the installed copy.")
+            return
+        }
         guard FileManager.default.isWritableFile(atPath: dest.deletingLastPathComponent().path) else {
-            state = .failed("Can't write to \(dest.deletingLastPathComponent().path). Reinstall with the install command instead.")
+            state = .failed("Can't write to \(dest.deletingLastPathComponent().path). Install Orchard in a writable folder or reinstall with the command at https://github.com/iraosandeep/Orchard#install.")
             return
         }
         do {
