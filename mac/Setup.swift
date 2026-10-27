@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 
 /// Settings (⌘,): everything on one resizable page, every dependency with a
@@ -64,6 +65,8 @@ struct SettingsView: View {
             } footer: {
                 Text("Used by Translate (⌘5), the selection button and Services › Translate with Orchard.")
             }
+
+            BackgroundSection()
 
             UpdatesSection()
 
@@ -304,6 +307,49 @@ struct ModelBanner: View {
     }
 }
 
+/// Open at login and the background server, both shown in System Settings ›
+/// Login Items.
+struct BackgroundSection: View {
+    @Bindable var l = LoginItems.shared
+
+    var body: some View {
+        Section {
+            Toggle(isOn: $l.openAtLogin) {
+                Text("Open Orchard at login")
+                Text(detail(l.appStatus, l.appError,
+                            on: "The menu bar, \(rewriteShortcutLabel) Rewrite and the selection button start when you log in."))
+            }
+            Toggle(isOn: $l.showChatAtLaunch) {
+                Text("Open the chat window when Orchard starts")
+                Text("Off: Orchard starts in the menu bar only. It always does when opened at login.")
+            }
+            Toggle(isOn: $l.showInDock) {
+                Text("Show in Dock")
+                Text("Off: Orchard lives in the menu bar only, and stays out of the Dock and ⌘Tab.")
+            }
+            Toggle(isOn: $l.backgroundServer) {
+                Text("Keep server running in the background")
+                Text(detail(l.agentStatus, l.agentError,
+                            on: "Tasks in the browser, `orchard run` and fm serve keep working after you quit Orchard."))
+            }
+            if l.translocated {
+                Text("Move Orchard to your Applications folder and reopen it to turn these on.")
+                    .font(.caption).foregroundStyle(.orange)
+            } else if l.appStatus == .requiresApproval || l.agentStatus == .requiresApproval {
+                Button("Allow in Login Items…") { l.openSystemSettings() }
+            }
+        } header: {
+            Text("Startup & Background")
+        }
+        .onAppear { l.refresh() }
+    }
+
+    private func detail(_ status: SMAppService.Status, _ error: String?, on: String) -> String {
+        if let error { return error }
+        return status == .requiresApproval ? "Needs your approval in System Settings › Login Items." : on
+    }
+}
+
 /// On/off for the button that appears next to selected text, and a way to
 /// bring it back in apps it was hidden in.
 struct SelectionWidgetToggle: View {
@@ -344,6 +390,7 @@ struct MenuBarContent: View {
             Task { await RewriteController.shared.trigger() }
         }
         Toggle("Show Button on Selected Text", isOn: Bindable(SelectionWidget.shared).enabled)
+        Toggle("Open at Login", isOn: Bindable(LoginItems.shared).openAtLogin)
         Divider()
         Button(s.needsSetup ? "Settings… ⚠︎" : "Settings…") {
             openSettings()
