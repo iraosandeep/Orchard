@@ -1,8 +1,6 @@
-// Startup and background options. Two are background items, as listed in
-// System Settings › Login Items: the app itself opens at login (menu bar,
-// Rewrite, selection button), and the bundled Orchard server runs as a launchd
-// agent that keeps going after the app quits. The others decide how much of
-// the app shows: the Dock icon and the chat window at launch.
+// Startup options. Open at login is a login item (System Settings › Login
+// Items) that starts the menu bar, Rewrite and the selection button; the others
+// decide how much of the app shows: the Dock icon and the chat window at launch.
 import AppKit
 import Observation
 import ServiceManagement
@@ -11,8 +9,6 @@ import ServiceManagement
 final class LoginItems {
     static let shared = LoginItems()
 
-    nonisolated static let agentLabel = "local.orchard.server"
-    private let agent = SMAppService.agent(plistName: "\(agentLabel).plist")
     private let app = SMAppService.mainApp
 
     /// Off until the user says yes, either in the first-launch prompt or in Settings.
@@ -37,40 +33,12 @@ final class LoginItems {
         didSet { UserDefaults.standard.set(showChatAtLaunch, forKey: "showChatAtLaunch") }
     }
 
-    var backgroundServer = UserDefaults.standard.object(forKey: "backgroundServer") as? Bool ?? true {
-        didSet {
-            UserDefaults.standard.set(backgroundServer, forKey: "backgroundServer")
-            let services = Services.shared
-            if backgroundServer { services.stopServer() }  // free the port for the agent
-            agentError = apply(agent, backgroundServer)
-            refresh()
-            Task {
-                // Turned off: launchd stops the agent's server; let it release
-                // the port before the app starts its own.
-                if !backgroundServer {
-                    for _ in 0..<50 where await Services.healthStatus(services.webURL) != nil {
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
-                }
-                await services.ensureServer()
-            }
-        }
-    }
-
     private(set) var appStatus: SMAppService.Status = .notRegistered
-    private(set) var agentStatus: SMAppService.Status = .notRegistered
     private(set) var appError: String?
-    private(set) var agentError: String?
 
     /// Run from a translocated (quarantined, unmoved) copy, registering would
     /// point launchd at a temporary path that disappears.
     var translocated: Bool { Bundle.main.bundlePath.contains("/AppTranslocation/") }
-
-    /// launchd runs the server; the app shouldn't start its own. The agent
-    /// listens on the default address, so an ORCHARD_ADDR override opts out.
-    var agentActive: Bool {
-        backgroundServer && agentStatus == .enabled && Services.shared.addr == "127.0.0.1:1977"
-    }
 
     /// True when this launch came from the login item rather than the user.
     static var launchedAtLogin: Bool {
@@ -81,7 +49,10 @@ final class LoginItems {
     func start() {
         guard !translocated else { return refresh() }
         appError = apply(app, openAtLogin)
-        agentError = apply(agent, backgroundServer)
+        // v0.4.6 registered the server as a background agent that macOS won't
+        // run; remove it so launchd stops retrying and the app runs the server.
+        let agent = SMAppService.agent(plistName: "local.orchard.server.plist")
+        if agent.status != .notRegistered && agent.status != .notFound { try? agent.unregister() }
         refresh()
     }
 
@@ -104,15 +75,6 @@ final class LoginItems {
 
     func refresh() {
         appStatus = app.status
-        agentStatus = agent.status
-    }
-
-    /// Restarts the agent's server (launchd relaunches it right away).
-    func restartAgent() {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        p.arguments = ["kickstart", "-k", "gui/\(getuid())/\(Self.agentLabel)"]
-        try? p.run()
     }
 
     func openSystemSettings() { SMAppService.openSystemSettingsLoginItems() }

@@ -51,8 +51,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   </array>
 </dict></plist>
 PLIST
-# The server as a launchd agent (System Settings › Login Items), registered by
-# the app with SMAppService so it runs in the background after the app quits.
+# v0.4.6 registered the server as a launchd agent, which macOS won't run for a
+# locally signed app. The plist stays in the bundle only so the app can
+# unregister it on machines that have it (see LoginItems.start).
 mkdir -p "$APP/Contents/Library/LaunchAgents"
 cat > "$APP/Contents/Library/LaunchAgents/local.orchard.server.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -63,15 +64,6 @@ cat > "$APP/Contents/Library/LaunchAgents/local.orchard.server.plist" <<PLIST
   <key>ProgramArguments</key><array>
     <string>orchard</string><string>serve</string><string>-addr</string><string>127.0.0.1:1977</string>
   </array>
-  <key>EnvironmentVariables</key><dict>
-    <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin</string>
-    <key>ORCHARD_LOG</key><string>orchard.log</string>
-  </dict>
-  <key>AssociatedBundleIdentifiers</key><array><string>local.orchard</string></array>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>ThrottleInterval</key><integer>2</integer>
-  <key>ProcessType</key><string>Background</string>
 </dict></plist>
 PLIST
 # Sign with a stable local identity so macOS keeps the Accessibility grant

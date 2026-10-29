@@ -307,8 +307,8 @@ struct ModelBanner: View {
     }
 }
 
-/// Open at login and the background server, both shown in System Settings ›
-/// Login Items.
+/// Open at login (shown in System Settings › Login Items) and how much of the
+/// app shows at launch.
 struct BackgroundSection: View {
     @Bindable var l = LoginItems.shared
 
@@ -327,19 +327,14 @@ struct BackgroundSection: View {
                 Text("Show in Dock")
                 Text("Off: Orchard lives in the menu bar only, and stays out of the Dock and ⌘Tab.")
             }
-            Toggle(isOn: $l.backgroundServer) {
-                Text("Keep server running in the background")
-                Text(detail(l.agentStatus, l.agentError,
-                            on: "Tasks in the browser, `orchard run` and fm serve keep working after you quit Orchard."))
-            }
             if l.translocated {
-                Text("Move Orchard to your Applications folder and reopen it to turn these on.")
+                Text("Move Orchard to your Applications folder and reopen it to turn on Open at Login.")
                     .font(.caption).foregroundStyle(.orange)
-            } else if l.appStatus == .requiresApproval || l.agentStatus == .requiresApproval {
+            } else if l.appStatus == .requiresApproval {
                 Button("Allow in Login Items…") { l.openSystemSettings() }
             }
         } header: {
-            Text("Startup & Background")
+            Text("Startup")
         }
         .onAppear { l.refresh() }
     }
