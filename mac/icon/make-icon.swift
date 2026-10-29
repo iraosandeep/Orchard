@@ -1,7 +1,7 @@
 // Draws the Orchard app icon and writes mac/icon/AppIcon.icns, docs/logo.png
 // and web/icon.png. Run from the repo root:  swift mac/icon/make-icon.swift
 //
-// Design: a green squircle (Apple's 824/1024 icon grid) with a white leaf on a
+// Design: a light grey squircle (Apple's 824/1024 icon grid) with a dark leaf on a
 // short stem and a smaller sprouting leaf: "lots of small things grown locally".
 import AppKit
 
@@ -37,24 +37,25 @@ func draw(size: CGFloat) -> NSBitmapImageRep {
     shadow.shadowOffset = NSSize(width: 0, height: -10)
     shadow.shadowBlurRadius = 24
     shadow.set()
-    NSColor(calibratedRed: 0.16, green: 0.52, blue: 0.24, alpha: 1).setFill()
+    NSColor(calibratedWhite: 0.78, alpha: 1).setFill()
     squircle.fill()
     NSGraphicsContext.restoreGraphicsState()
 
     NSGraphicsContext.saveGraphicsState()
     squircle.addClip()
     NSGradient(colors: [
-        NSColor(calibratedRed: 0.53, green: 0.84, blue: 0.36, alpha: 1),
-        NSColor(calibratedRed: 0.20, green: 0.62, blue: 0.30, alpha: 1),
-        NSColor(calibratedRed: 0.09, green: 0.42, blue: 0.22, alpha: 1),
+        NSColor(calibratedWhite: 0.96, alpha: 1),
+        NSColor(calibratedWhite: 0.88, alpha: 1),
+        NSColor(calibratedWhite: 0.78, alpha: 1),
     ])!.draw(in: body, angle: -70)
     // Subtle top highlight.
     NSGradient(colors: [NSColor.white.withAlphaComponent(0.22), NSColor.white.withAlphaComponent(0)])!
         .draw(in: NSRect(x: 100, y: 560, width: 824, height: 364), angle: -90)
     NSGraphicsContext.restoreGraphicsState()
 
-    let white = NSColor(calibratedWhite: 1, alpha: 0.97)
-    let veinColor = NSColor(calibratedRed: 0.20, green: 0.58, blue: 0.29, alpha: 1)
+    // Same tones as the selection badge: a dark leaf on light grey.
+    let ink = NSColor(calibratedWhite: 0.20, alpha: 1)
+    let veinColor = NSColor(calibratedWhite: 0.42, alpha: 1)
 
     // Stem.
     let stem = NSBezierPath()
@@ -62,7 +63,7 @@ func draw(size: CGFloat) -> NSBitmapImageRep {
     stem.curve(to: NSPoint(x: 462, y: 372), controlPoint1: NSPoint(x: 428, y: 275), controlPoint2: NSPoint(x: 450, y: 335))
     stem.lineWidth = 34
     stem.lineCapStyle = .round
-    white.setStroke()
+    ink.setStroke()
     stem.stroke()
 
     func leaf(at origin: NSPoint, angle: CGFloat, length: CGFloat, width: CGFloat, vein: Bool) {
@@ -73,11 +74,11 @@ func draw(size: CGFloat) -> NSBitmapImageRep {
         p.transform(using: t as AffineTransform)
         NSGraphicsContext.saveGraphicsState()
         let s = NSShadow()
-        s.shadowColor = NSColor.black.withAlphaComponent(0.18)
+        s.shadowColor = NSColor.black.withAlphaComponent(0.12)
         s.shadowOffset = NSSize(width: 0, height: -6)
         s.shadowBlurRadius = 14
         s.set()
-        white.setFill()
+        ink.setFill()
         p.fill()
         NSGraphicsContext.restoreGraphicsState()
         guard vein else { return }

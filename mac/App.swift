@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let atLogin = LoginItems.launchedAtLogin
         MainActor.assumeIsolated {
             LoginItems.shared.applyDockPolicy()
-            LoginItems.shared.start()  // before Services, so it uses the background server
+            LoginItems.shared.start()
             NSApp.servicesProvider = TextServices.shared
             NSUpdateDynamicServices()
             RewriteController.shared.start()

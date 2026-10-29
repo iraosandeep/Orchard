@@ -25,6 +25,8 @@ final class SelectionWidget {
     private(set) var ignored = Set(UserDefaults.standard.stringArray(forKey: "selectionWidgetIgnored") ?? [])
 
     var expanded = false
+    /// The card opened upwards from the badge, so its bottom row sits under the pointer.
+    private(set) var opensUp = false
     private(set) var text = ""
     private(set) var app: NSRunningApplication?
 
@@ -249,7 +251,8 @@ final class SelectionWidget {
         var r = NSRect(x: badgeFrame.minX, y: badgeFrame.maxY - size.height, width: size.width, height: size.height)
         let below = badgeFrame.maxY - area.minY
         let above = area.maxY - badgeFrame.minY
-        if size.height > below, above > below {
+        opensUp = size.height > below && above > below
+        if opensUp {
             r.origin.y = badgeFrame.minY
         }
         panel.setFrame(clamp(r), display: true)
@@ -319,7 +322,7 @@ struct SelectionWidgetView: View {
                 card
             } else {
                 HStack(spacing: 4) {
-                    Image(systemName: "leaf.fill").foregroundStyle(.green)
+                    Image(systemName: "leaf.fill")
                     Text("Orchard")
                 }
                 .font(.system(size: 12, weight: .semibold))
@@ -335,42 +338,18 @@ struct SelectionWidgetView: View {
         .onHover { widget.hover($0) }
     }
 
+    /// The header always sits where the badge was (under the pointer) and
+    /// "Don't Show" at the far end, so opening the card never lands on it.
     private var card: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Label("Orchard", systemImage: "leaf.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-            ForEach(Array(RewriteState.presets.enumerated()), id: \.offset) { _, p in
-                Button(p.name) { widget.run(.instruction(p.instruction)) }
-                    .buttonStyle(RowStyle())
-            }
-            Divider().padding(.vertical, 3)
-            let lang = RewriteController.shared.state.translateTo
-            HStack(spacing: 0) {
-                Button("Translate to \(lang)") { widget.run(.translate(lang)) }
-                    .buttonStyle(RowStyle())
-                Menu {
-                    ForEach(RewriteState.languages, id: \.self) { l in
-                        Button(l) { widget.run(.translate(l)) }
-                    }
-                } label: {
-                    Image(systemName: "chevron.down").font(.caption)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .padding(.horizontal, 6)
-                .help("Other languages")
-            }
-            Button("Rewrite…") { widget.run(nil) }
-                .buttonStyle(RowStyle())
-                .help("Open the Rewrite window to describe your own change")
-            if let name = widget.app?.localizedName {
-                Divider().padding(.vertical, 3)
-                Button("Don't Show in \(name)") { widget.ignoreCurrentApp() }
-                    .buttonStyle(RowStyle(secondary: true))
+            if widget.opensUp {
+                dontShow
+                actions
+                header
+            } else {
+                header
+                actions
+                dontShow
             }
         }
         .padding(5)
@@ -378,6 +357,51 @@ struct SelectionWidgetView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var header: some View {
+        Label("Orchard", systemImage: "leaf.fill")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+    }
+
+    @ViewBuilder private var actions: some View {
+        ForEach(Array(RewriteState.presets.enumerated()), id: \.offset) { _, p in
+            Button(p.name) { widget.run(.instruction(p.instruction)) }
+                .buttonStyle(RowStyle())
+        }
+        Divider().padding(.vertical, 3)
+        let lang = RewriteController.shared.state.translateTo
+        HStack(spacing: 0) {
+            Button("Translate to \(lang)") { widget.run(.translate(lang)) }
+                .buttonStyle(RowStyle())
+            Menu {
+                ForEach(RewriteState.languages, id: \.self) { l in
+                    Button(l) { widget.run(.translate(l)) }
+                }
+            } label: {
+                Image(systemName: "chevron.down").font(.caption)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .help("Other languages")
+        }
+        Button("Rewrite…") { widget.run(nil) }
+            .buttonStyle(RowStyle())
+            .help("Open the Rewrite window to describe your own change")
+    }
+
+    @ViewBuilder private var dontShow: some View {
+        if let name = widget.app?.localizedName {
+            if !widget.opensUp { Divider().padding(.vertical, 3) }
+            Button("Don't Show in \(name)") { widget.ignoreCurrentApp() }
+                .buttonStyle(RowStyle(secondary: true))
+            if widget.opensUp { Divider().padding(.vertical, 3) }
+        }
     }
 }
 

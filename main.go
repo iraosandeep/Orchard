@@ -45,13 +45,6 @@ func main() {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		log.Fatal(err)
 	}
-	// Run by launchd (no terminal or parent app): log to a file in dir.
-	if name := os.Getenv("ORCHARD_LOG"); name != "" {
-		if f, err := os.OpenFile(filepath.Join(dir, name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
-			log.SetOutput(f)
-			os.Stderr = f
-		}
-	}
 	fmURL := os.Getenv("ORCHARD_FM_URL")
 	if fmURL == "" {
 		fmURL = "http://127.0.0.1:1976"
