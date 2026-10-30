@@ -16,7 +16,7 @@ A local build and an installed copy share the same bundle ID, server port and sh
 1. Orchard checks that Apple Intelligence is on, and that the `fm` tool is installed with its license agreed.
 2. It starts the bundled Orchard server (web Tasks UI and API on `http://127.0.0.1:1977`).
 3. That server starts `fm serve` (`127.0.0.1:1976`) and restarts it if it ever dies.
-4. Orchard registers the Rewrite Selection shortcut (⌃⌥R), the right-click Services items and the 🍃 menu-bar item.
+4. Orchard registers the Rewrite Selection shortcut (⌃⌥R), the right-click Services items and the leaf menu-bar item.
 
 If anything needs attention, **Settings** (⌘,) opens automatically:
 
@@ -35,8 +35,8 @@ Quitting Orchard (⌘Q or from the menu bar) stops the server and any `fm serve`
 
 ```
 Orchard.app (Swift)
-├─ Chat window ──────────────────────┐
-├─ Rewrite window (⌃⌥R, 🍃, Services) ┴─ FoundationModels (on-device, 8K context)
+├─ Chat window ───────────────────────────┐
+├─ Rewrite window (⌃⌥R, button, Services) ┴─ FoundationModels (on-device, 8K context)
 ├─ Menu bar + Settings
 └─ Resources/orchard (Go) ── serve ── web Tasks UI + API ─┐
                              run   ── CLI ────────────────┴─ guard ── fm serve (4K context)
