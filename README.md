@@ -105,4 +105,4 @@ Install the `orchard` command from Settings. Tasks also run in the browser: **Op
 
 Need help? Email [iraosandeep.dev@gmail.com](mailto:iraosandeep.dev@gmail.com).
 
-You can also use **Settings › Help & Feedback**, which fills in your Orchard and macOS versions for you. Building from source or contributing? See [CONTRIBUTING.md](CONTRIBUTING.md).
+You can also use **Settings › Help & Feedback**, which fills in your Orchard and macOS versions for you. Building from source or contributing? See [CONTRIBUTING.md](https://github.com/iraosandeep/Orchard/blob/main/CONTRIBUTING.md).
