@@ -39,13 +39,21 @@ codesign -d -r- Orchard.app 2>&1 | grep -q "certificate leaf = H\"$RELEASE_CERT\
 
 rm -rf dist && mkdir dist
 ditto -c -k --keepParent Orchard.app dist/Orchard.zip
+# Drag-to-Applications disk image for browser downloads. Left unsigned on purpose:
+# Gatekeeper blocks a downloaded DMG signed with our self-signed cert ("Not Opened").
+# The app inside is still signed, which is what the updater checks.
+STAGE=$(mktemp -d)
+ditto Orchard.app "$STAGE/Orchard.app"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -quiet -volname Orchard -srcfolder "$STAGE" -fs APFS -format ULFO -ov dist/Orchard.dmg
+rm -rf "$STAGE"
 cp install.sh dist/install.sh
-(cd dist && shasum -a 256 Orchard.zip install.sh > SHA256SUMS)
+(cd dist && shasum -a 256 Orchard.zip Orchard.dmg install.sh > SHA256SUMS)
 echo "Packaged:"; ls -lh dist | tail -n +2
 
 [ "$DRY" = "--dry-run" ] && { echo "Dry run: not publishing."; exit 0; }
 
-gh release create "$VERSION" dist/Orchard.zip dist/install.sh dist/SHA256SUMS \
+gh release create "$VERSION" dist/Orchard.zip dist/Orchard.dmg dist/install.sh dist/SHA256SUMS \
   --target main --title "Orchard $VERSION" --generate-notes \
   --notes "$(cat <<EOF
 ## Install
@@ -54,8 +62,10 @@ gh release create "$VERSION" dist/Orchard.zip dist/install.sh dist/SHA256SUMS \
 curl -fsSL https://github.com/iraosandeep/Orchard/releases/latest/download/install.sh | sh
 \`\`\`
 
+Or download **Orchard.dmg**, open it, and drag Orchard to Applications.
+
 Requires an Apple Silicon Mac on macOS 26.4+ with Apple Intelligence turned on.
-Not notarized: install with the command above. A browser download needs
+Not notarized: the command above is the smoothest install. A browser download needs
 System Settings › Privacy & Security › **Open Anyway** on first launch.
 EOF
 )"
